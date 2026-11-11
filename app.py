@@ -159,8 +159,15 @@ def admin_panel():
     hoy_str = datetime.now().strftime('%d/%m/%Y')
     historial_envios = Pedido.query.filter_by(estado='Completado').order_by(Pedido.id.desc()).all()
     
-    pedidos_hoy = [p for p in historial_envios if p.solo_fecha == hoy_str]
-    pedidos_historicos = [p for p in historial_envios if p.solo_fecha != hoy_str]
+    pedidos_hoy = [p for p in historial_envios if getattr(p, 'solo_fecha', hoy_str) == hoy_str]
+    
+    historicos_agrupados = {}
+    for p in historial_envios:
+        fecha_item = getattr(p, 'solo_fecha', hoy_str)
+        if fecha_item != hoy_str:
+            if fecha_item not in historicos_agrupados:
+                historicos_agrupados[fecha_item] = []
+            historicos_agrupados[fecha_item].append(p)
     
     return render_template(
         'admin.html', 
@@ -170,7 +177,7 @@ def admin_panel():
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
         pedidos_hoy=pedidos_hoy,
-        pedidos_historicos=pedidos_historicos,
+        historicos_agrupados=historicos_agrupados,
         seccion=seccion_admin
     )
 
@@ -234,6 +241,21 @@ def eliminar_pedido(id):
     db.session.commit()
     flash(f'El pedido #{pedido.id} ha sido eliminado.', 'info')
     return redirect(url_for('admin_panel'))
+
+@app.route('/admin/vaciar_historial_hoy')
+def vaciar_historial_hoy():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    hoy_str = datetime.now().strftime('%d/%m/%Y')
+    pedidos_hoy = Pedido.query.filter_by(estado='Completado', solo_fecha=hoy_str).all()
+    
+    for p in pedidos_hoy:
+        p.solo_fecha = "Archivado (" + hoy_str + ")"
+        
+    db.session.commit()
+    flash('El historial de hoy ha sido vaciado y guardado en los paneles de archivo.', 'success')
+    return redirect(url_for('admin_panel', seccion='historial_envios'))
 
 @app.route('/admin/eliminar/<int:id>')
 def eliminar_usuario(id):
