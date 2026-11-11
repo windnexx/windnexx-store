@@ -30,6 +30,7 @@ class Pedido(db.Model):
     jugador_id = db.Column(db.String(50), nullable=False)
     detalle = db.Column(db.Text, nullable=False)
     total = db.Column(db.Float, nullable=False)
+    telefono_digitos = db.Column(db.String(10), nullable=False)
     codigo_operacion = db.Column(db.String(50), nullable=False)
     estado = db.Column(db.String(50), default='Validación de pago') 
     fecha = db.Column(db.String(30), default=lambda: datetime.now().strftime('%d/%m/%Y %H:%M'))
@@ -39,10 +40,10 @@ with app.app_context():
     db.create_all()
     admin_existente = Usuario.query.filter_by(correo='admin@windnexx.com').first()
     if not admin_existente:
-        admin_pass = generate_password_hash('admin123')
+        admin_pass = generate_password_hash('2244Nexxxx')
         nuevo_admin = Usuario(
             nombre='Administrador',
-            correo='admin@windnexx.com',
+            correo='windnexx@gmail.com',
             password=admin_pass,
             rol='admin',
             confirmado=True,
@@ -288,7 +289,6 @@ def agregar_carrito():
     flash(f'Se agregaron {cantidad} de {producto} al carrito.', 'success')
     return redirect(url_for('cliente_home'))
 
-# Ruta para capturar el ID y pasar a la pasarela de pago con QR grande
 @app.route('/cliente/preparar_pago', methods=['POST'])
 def preparar_pago():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
@@ -296,7 +296,7 @@ def preparar_pago():
         
     if not session.get('carrito'):
         flash('Tu carrito está vacío.', 'warning')
-        return redirect(url_for('cliente_home'))
+        return redirect(url_for('login'))
         
     jugador_id = request.form.get('jugador_id', '').strip()
     if not jugador_id:
@@ -317,9 +317,11 @@ def pagar_yape():
         flash('Sesión de pago expirada o carrito vacío.', 'warning')
         return redirect(url_for('cliente_home'))
         
+    telefono_digitos = request.form.get('telefono_digitos', '').strip()
     codigo_operacion = request.form.get('codigo_operacion', '').strip()
-    if not codigo_operacion:
-        flash('Debes ingresar el código de confirmación de Yape.', 'danger')
+    
+    if not telefono_digitos or not codigo_operacion:
+        flash('Debes ingresar los últimos 3 dígitos y el código de operación.', 'danger')
         return redirect(url_for('cliente_home', seccion='pago_yape'))
         
     jugador_id = session['jugador_id_temp']
@@ -339,6 +341,7 @@ def pagar_yape():
         jugador_id=jugador_id,
         detalle=detalle_texto,
         total=round(total_general, 2),
+        telefono_digitos=telefono_digitos,
         codigo_operacion=codigo_operacion,
         estado='Validación de pago'
     )
@@ -346,7 +349,6 @@ def pagar_yape():
     db.session.add(nuevo_pedido)
     db.session.commit()
     
-    # Limpiar carrito y temporal
     session['carrito'] = []
     session.pop('jugador_id_temp', None)
     session.modified = True
