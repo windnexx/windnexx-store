@@ -34,23 +34,39 @@ class Pedido(db.Model):
     codigo_operacion = db.Column(db.String(50), nullable=False)
     estado = db.Column(db.String(50), default='Validación de pago') 
     fecha = db.Column(db.String(30), default=lambda: datetime.now().strftime('%d/%m/%Y %H:%M'))
+    solo_fecha = db.Column(db.String(20), default=lambda: datetime.now().strftime('%d/%m/%Y'))
 
-# Inicializar Base de Datos y crear usuario admin por defecto
+# Inicializar Base de Datos y crear los administradores por defecto
 with app.app_context():
     db.create_all()
-    admin_existente = Usuario.query.filter_by(correo='admin@windnexx.com').first()
-    if not admin_existente:
-        admin_pass = generate_password_hash('2244Nexxxx')
-        nuevo_admin = Usuario(
-            nombre='Administrador',
+    
+    # 1. Administrador Principal: windnexx@gmail.com
+    admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
+    if not admin_1:
+        nuevo_admin_1 = Usuario(
+            nombre='Administrador Windnexx',
             correo='windnexx@gmail.com',
-            password=admin_pass,
+            password=generate_password_hash('2244Nexxxx'),
             rol='admin',
             confirmado=True,
             categoria='Supercliente'
         )
-        db.session.add(nuevo_admin)
-        db.session.commit()
+        db.session.add(nuevo_admin_1)
+
+    # 2. Segundo Administrador: croldan12345@gmail.com
+    admin_2 = Usuario.query.filter_by(correo='croldan12345@gmail.com').first()
+    if not admin_2:
+        nuevo_admin_2 = Usuario(
+            nombre='Administrador Carlos',
+            correo='croldan12345@gmail.com',
+            password=generate_password_hash('masterkeyne9999'),
+            rol='admin',
+            confirmado=True,
+            categoria='Supercliente'
+        )
+        db.session.add(nuevo_admin_2)
+        
+    db.session.commit()
 
 # Precios unitarios
 PRECIOS = {
@@ -138,7 +154,13 @@ def admin_panel():
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
+    
+    # Historial de envíos ordenados y separados por día actual y días anteriores
+    hoy_str = datetime.now().strftime('%d/%m/%Y')
     historial_envios = Pedido.query.filter_by(estado='Completado').order_by(Pedido.id.desc()).all()
+    
+    pedidos_hoy = [p for p in historial_envios if p.solo_fecha == hoy_str]
+    pedidos_historicos = [p for p in historial_envios if p.solo_fecha != hoy_str]
     
     return render_template(
         'admin.html', 
@@ -147,6 +169,8 @@ def admin_panel():
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
+        pedidos_hoy=pedidos_hoy,
+        pedidos_historicos=pedidos_historicos,
         seccion=seccion_admin
     )
 
@@ -194,9 +218,22 @@ def completar_recarga(id):
         
     pedido = Pedido.query.get_or_404(id)
     pedido.estado = 'Completado'
+    pedido.solo_fecha = datetime.now().strftime('%d/%m/%Y')
+    pedido.fecha = datetime.now().strftime('%d/%m/%Y %H:%M')
     db.session.commit()
     flash(f'Recarga completada para el pedido #{pedido.id}. Movido al historial.', 'success')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
+
+@app.route('/admin/eliminar_pedido/<int:id>')
+def eliminar_pedido(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    pedido = Pedido.query.get_or_404(id)
+    db.session.delete(pedido)
+    db.session.commit()
+    flash(f'El pedido #{pedido.id} ha sido eliminado.', 'info')
+    return redirect(url_for('admin_panel'))
 
 @app.route('/admin/eliminar/<int:id>')
 def eliminar_usuario(id):
@@ -205,7 +242,7 @@ def eliminar_usuario(id):
         
     usuario = Usuario.query.get_or_404(id)
     if usuario.rol == 'admin':
-        flash('No puedes eliminar al administrador principal.', 'danger')
+        flash('No puedes eliminar cuentas de administrador.', 'danger')
         return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
         
     db.session.delete(usuario)
@@ -343,7 +380,8 @@ def pagar_yape():
         total=round(total_general, 2),
         telefono_digitos=telefono_digitos,
         codigo_operacion=codigo_operacion,
-        estado='Validación de pago'
+        estado='Validación de pago',
+        solo_fecha=datetime.now().strftime('%d/%m/%Y')
     )
     
     db.session.add(nuevo_pedido)
