@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    
+    <!-- MENÚ LATERAL IZQUIERDO ADMINISTRADOR -->
+    <div class="col-md-3 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold py-3">
+                <i class="bi bi-shield-lock"></i> Panel Administrador
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_pendientes' %}active fw-bold{% endif %}">
+                    📦 Pedidos Pendientes <span class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_recargando' %}active fw-bold{% endif %}">
+                    ⚡ Recargando <span class="badge bg-warning text-dark float-end">{{ pedidos_recargando|length }}</span>
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action {% if seccion == 'historial_envios' %}active fw-bold{% endif %}">
+                    📋 Historial de Envíos Realizados
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
+                    👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ pendientes|length }}</span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-danger fw-bold mt-3 border-top">
+                    🚪 Cerrar Sesión
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL DEL ADMIN -->
+    <div class="col-md-9">
+
+        {% if seccion == 'pedidos_pendientes' %}
+            <!-- PEDIDOS PENDIENTES (Validación de Pago Yape) -->
+            <div class="card shadow-sm border-primary">
+                <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>📦 Pedidos Pendientes (Validación de Pago Yape)</span>
+                    <span class="badge bg-light text-dark">{{ pedidos_validacion|length }} por validar</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>ID Jugador</th>
+                                <th>Total</th>
+                                <th>Últimos 3 dígitos</th>
+                                <th>Nro. Operación</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pedidos_validacion %}
+                            <tr>
+                                <td>{{ p.fecha }}</td>
+                                <td class="fw-bold">{{ p.nombre_cliente }}</td>
+                                <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                <td><span class="badge bg-secondary">{{ p.telefono_digitos }}</span></td>
+                                <td><code>{{ p.codigo_operacion }}</code></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold" onclick="return confirm('¿Validar pago y pasar a estado Recargando?')">
+                                        ✓ Validar y Recargar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">No hay pagos pendientes por validar.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        {% elif seccion == 'pedidos_recargando' %}
+            <!-- ESTADO: RECARGANDO (Con ID copiable con un clic) -->
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span>⚡ Pedidos en Proceso de Recarga (Haz clic en el ID para copiarlo)</span>
+                    <span class="badge bg-dark text-white">{{ pedidos_recargando|length }} recargando</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>ID Jugador (Clic para copiar)</th>
+                                <th>Detalle</th>
+                                <th>Nro. Operación</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pedidos_recargando %}
+                            <tr>
+                                <td>{{ p.fecha }}</td>
+                                <td class="fw-bold">{{ p.nombre_cliente }}</td>
+                                <td>
+                                    <!-- ID con evento onclick para copiar al portapapeles -->
+                                    <span class="badge bg-dark text-white px-2 py-1" style="cursor: pointer; font-size: 13px;" onclick="copiarTexto('{{ p.jugador_id }}', this)" title="Haz clic para copiar">
+                                        <i class="bi bi-clipboard"></i> {{ p.jugador_id }}
+                                    </span>
+                                </td>
+                                <td class="fw-semibold text-dark">{{ p.detalle }}</td>
+                                <td><code>{{ p.codigo_operacion }}</code></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold" onclick="return confirm('¿Confirmar que la recarga ha finalizado?')">
+                                        🚀 Completar Envío
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No hay recargas en curso actualmente.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        {% elif seccion == 'historial_envios' %}
+            <!-- HISTORIAL DE ENVÍOS -->
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white fw-bold">
+                    📋 Historial de Envíos Realizados (Completados)
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-striped align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>ID Destino</th>
+                                <th>Detalle</th>
+                                <th>Total</th>
+                                <th>Teléfono (3 dig)</th>
+                                <th>Operación Yape</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in historial_envios %}
+                            <tr>
+                                <td>{{ h.fecha }}</td>
+                                <td class="fw-bold">{{ h.nombre_cliente }}</td>
+                                <td><span class="badge bg-dark">{{ h.jugador_id }}</span></td>
+                                <td>{{ h.detalle }}</td>
+                                <td class="fw-bold text-success">S/ {{ h.total }}</td>
+                                <td><span class="badge bg-secondary">{{ h.telefono_digitos }}</span></td>
+                                <td><code>{{ h.codigo_operacion }}</code></td>
+                                <td><span class="badge bg-success">Completado</span></td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">Aún no hay registros en el historial de envíos.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        {% elif seccion == 'gestion_usuarios' %}
+            <!-- GESTIÓN DE USUARIOS -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white fw-bold">
+                    Usuarios Pendientes de Confirmación (Registro)
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Correo</th>
+                                <th>Estado</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in pendientes %}
+                            <tr>
+                                <td>{{ u.nombre }}</td>
+                                <td>{{ u.correo }}</td>
+                                <td><span class="badge bg-secondary">Pendiente</span></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('confirmar_usuario', id=u.id) }}" class="btn btn-sm btn-success fw-bold me-1">Confirmar</a>
+                                    <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-3 text-muted">No hay registros pendientes.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white fw-bold">
+                    Clientes Registrados y Categorización
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-striped align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Correo</th>
+                                <th>Categoría</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in confirmados %}
+                            <tr>
+                                <td>{{ u.nombre }}</td>
+                                <td>{{ u.correo }}</td>
+                                <td>
+                                    <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST">
+                                        <select name="categoria" class="form-select form-select-sm" style="width: 150px;" onchange="this.form.submit()">
+                                            <option value="Supercliente" {% if u.categoria == 'Supercliente' %}selected{% endif %}>⭐ Supercliente</option>
+                                            <option value="Cliente" {% if u.categoria == 'Cliente' %}selected{% endif %}>👤 Cliente</option>
+                                            <option value="Otros" {% if u.categoria == 'Otros' %}selected{% endif %}>📁 Otros</option>
+                                        </select>
+                                    </form>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar cliente?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-3 text-muted">No hay clientes confirmados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<!-- SCRIPT DE JAVASCRIPT PARA COPIAR AL PORTAPAPELES -->
+<script>
+function copiarTexto(texto, elemento) {
+    navigator.clipboard.writeText(texto).then(function() {
+        // Cambiar el texto o color temporalmente para indicar que se copió
+        let originalHTML = elemento.innerHTML;
+        elemento.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
+        elemento.classList.remove('bg-dark');
+        elemento.classList.add('bg-success');
+        
+        setTimeout(function() {
+            elemento.innerHTML = originalHTML;
+            elemento.classList.remove('bg-success');
+            elemento.classList.add('bg-dark');
+        }, 1200);
+    }, function(err) {
+        alert('Error al intentar copiar el ID: ', err);
+    });
+}
+</script>
+{% endblock %}

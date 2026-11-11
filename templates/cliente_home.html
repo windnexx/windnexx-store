@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    
+    <!-- MENÚ LATERAL IZQUIERDO -->
+    <div class="col-md-3 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold py-3">
+                <i class="bi bi-list"></i> Menú Principal
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('cliente_home', seccion='catalogo') }}" class="list-group-item list-group-item-action {% if seccion == 'catalogo' or seccion == 'pago_yape' %}active fw-bold{% endif %}">
+                    🛍️ Catálogo de Productos
+                </a>
+                <a href="{{ url_for('cliente_home', seccion='seguimiento') }}" class="list-group-item list-group-item-action {% if seccion == 'seguimiento' %}active fw-bold{% endif %}">
+                    📦 Seguimiento de Pedido
+                </a>
+                <a href="{{ url_for('cliente_home', seccion='historial') }}" class="list-group-item list-group-item-action {% if seccion == 'historial' %}active fw-bold{% endif %}">
+                    📋 Historial de Compras
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL (Derecha) -->
+    <div class="col-md-9">
+
+        {% if seccion == 'catalogo' %}
+            <!-- VISTA: CATÁLOGO Y CARRITO -->
+            <div class="row">
+                <div class="col-md-7">
+                    <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
+                    <div class="row row-cols-1 row-cols-sm-2 g-3">
+                        
+                        <!-- Fragmentos -->
+                        <div class="col">
+                            <div class="card h-100 shadow-sm text-center p-2">
+                                <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Fragmentos">
+                                <div class="card-body d-flex flex-column justify-content-between p-2">
+                                    <h6 class="card-title fw-bold">Fragmentos</h6>
+                                    <form action="{{ url_for('agregar_carrito') }}" method="POST">
+                                        <input type="hidden" name="producto" value="Fragmentos">
+                                        <div class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text">Cant.</span>
+                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cajas -->
+                        <div class="col">
+                            <div class="card h-100 shadow-sm text-center p-2">
+                                <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Cajas">
+                                <div class="card-body d-flex flex-column justify-content-between p-2">
+                                    <h6 class="card-title fw-bold">Cajas</h6>
+                                    <form action="{{ url_for('agregar_carrito') }}" method="POST">
+                                        <input type="hidden" name="producto" value="Cajas">
+                                        <div class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text">Cant.</span>
+                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pases -->
+                        <div class="col">
+                            <div class="card h-100 shadow-sm text-center p-2">
+                                <img src="{{ url_for('static', filename='pases.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Pases">
+                                <div class="card-body d-flex flex-column justify-content-between p-2">
+                                    <h6 class="card-title fw-bold">Pases</h6>
+                                    <form action="{{ url_for('agregar_carrito') }}" method="POST">
+                                        <input type="hidden" name="producto" value="Pases">
+                                        <div class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text">Cant.</span>
+                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Carrito de Compras Limpio -->
+                <div class="col-md-5">
+                    <div class="card shadow-sm border-dark">
+                        <div class="card-header bg-dark text-white fw-bold">
+                            🛒 Carrito de Compras
+                        </div>
+                        <div class="card-body">
+                            {% if carrito and carrito|length > 0 %}
+                                <ul class="list-group mb-3">
+                                    {% for item in carrito %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center small">
+                                            <div>
+                                                <span class="fw-bold">{{ item.producto }}</span> <span class="text-muted">(x{{ item.cantidad }})</span>
+                                            </div>
+                                            <span class="text-success fw-bold">S/ {{ item.subtotal }}</span>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+
+                                <!-- Total en Soles -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded border">
+                                    <span class="fw-bold text-dark">Total a Pagar:</span>
+                                    <span class="fs-5 fw-bold text-danger">S/ {{ total_general }}</span>
+                                </div>
+
+                                <!-- Formulario que solicita el ID del jugador y pasa a la pantalla de pago -->
+                                <form action="{{ url_for('preparar_pago') }}" method="POST">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold text-secondary">ID de cuenta del jugador:</label>
+                                        <input type="text" name="jugador_id" class="form-control form-control-sm" placeholder="Ingresa tu ID de destino" required>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-success w-100 fw-bold btn-sm mb-2">Pagar</button>
+                                </form>
+
+                                <a href="{{ url_for('vaciar_carrito') }}" class="btn btn-outline-danger btn-sm w-100">Vaciar Carrito</a>
+                            {% else %}
+                                <p class="text-muted text-center my-3 small">0 artículos seleccionados</p>
+                                <button class="btn btn-secondary w-100 btn-sm" disabled>Carrito Vacío</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif seccion == 'pago_yape' %}
+            <!-- VISTA: PASARELA DE PAGO CON QR GIGANTE Y CAMPOS ANCHOS -->
+            <div class="row g-4 align-items-start">
+                
+                <!-- COLUMNA IZQUIERDA: BLOQUE MORADO CON QR GIGANTE -->
+                <div class="col-md-5">
+                    <div class="p-4 rounded shadow-sm text-center" style="background-color: #6a1b9a;">
+                        <p class="text-white fw-bold mb-3 small">Escanea el código QR con tu aplicación Yape:</p>
+                        <div class="mb-3">
+                            <img src="{{ url_for('static', filename='yape_qr.png') }}" class="img-fluid w-100 rounded shadow" alt="QR Yape Gigante">
+                        </div>
+                        <h4 class="text-white fw-bold tracking-wider mb-0" style="font-family: monospace; letter-spacing: 1px;">WindNexx EIRL</h4>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: BLOQUE VERDE CON RESUMEN Y CAMPOS AJUSTADOS -->
+                <div class="col-md-7">
+                    <div class="card shadow border-success">
+                        <div class="card-header bg-success text-white fw-bold text-center py-3 fs-5">
+                            Pago Yape - Finalizar Compra
+                        </div>
+                        <div class="card-body p-4">
+                            
+                            <!-- Resumen del Pedido -->
+                            <div class="mb-3 p-3 bg-light rounded border">
+                                <p class="fw-bold text-dark mb-2 small">Resumen del Pedido:</p>
+                                <ul class="mb-3 ps-3 small text-muted">
+                                    {% for item in carrito %}
+                                        <li>{{ item.producto }} (x{{ item.cantidad }}) - <span class="text-success fw-bold">S/ {{ item.subtotal }}</span></li>
+                                    {% endfor %}
+                                </ul>
+
+                                <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-2">
+                                    <span class="fw-bold text-secondary small">ID de Jugador Destino:</span>
+                                    <span class="badge bg-dark fs-6 px-3 py-2">{{ session.get('jugador_id_temp') }}</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center pt-1 fs-5 text-danger fw-bold">
+                                    <span>Monto Total a Pagar:</span>
+                                    <span>S/ {{ total_general }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Formulario con campos ajustados (Teléfono más ancho y título correcto) -->
+                            <form action="{{ url_for('pagar_yape') }}" method="POST">
+                                <div class="row g-2 mb-3">
+                                    <!-- Últimos 3 dígitos del número (más ancho: col-md-5) -->
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-bold text-dark" style="font-size: 11px;">Últimos 3 dígitos del número:</label>
+                                        <input type="text" name="telefono_digitos" class="form-control text-center fw-bold text-primary" maxlength="3" placeholder="Ej. 842" required>
+                                    </div>
+                                    <!-- Número de operación Yape (col-md-7) -->
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-bold text-dark" style="font-size: 11px;">Número de Operación Yape:</label>
+                                        <input type="text" name="codigo_operacion" class="form-control text-center fw-bold text-primary" placeholder="Nro. operación" required autofocus>
+                                    </div>
+                                </div>
+                                <div class="form-text text-muted mb-3 text-center" style="font-size: 11px;">Introduce los datos de tu comprobante Yape para proceder con la validación.</div>
+
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('cliente_home', seccion='catalogo') }}" class="btn btn-outline-secondary w-50 fw-bold btn-sm">Regresar al Carrito</a>
+                                    <button type="submit" class="btn btn-success w-50 fw-bold btn-sm">Pagar</button>
+                                </div>
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        {% elif seccion == 'seguimiento' %}
+            <!-- VISTA: SEGUIMIENTO DE PEDIDO -->
+            <div class="card shadow-sm border-info">
+                <div class="card-header bg-info text-white fw-bold">
+                    📦 Seguimiento de mi Pedido
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('cliente_home') }}" method="GET" class="mb-4">
+                        <input type="hidden" name="seccion" value="seguimiento">
+                        <label class="form-label fw-bold small text-secondary">Buscar por ID de Jugador:</label>
+                        <div class="input-group">
+                            <input type="text" name="buscar_id" class="form-control" value="{{ buscar_id }}" placeholder="Ingresa tu ID para consultar estado..." required>
+                            <button class="btn btn-info text-white fw-bold" type="submit">Buscar ID</button>
+                        </div>
+                    </form>
+
+                    {% if buscar_id %}
+                        <h6 class="fw-bold mb-3">Resultados para el ID: <span class="text-primary">{{ buscar_id }}</span></h6>
+                        {% if resultados_seguimiento %}
+                            <div class="table-responsive">
+                                <table class="table table-striped table-bordered align-middle small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Detalle</th>
+                                            <th>Total</th>
+                                            <th>Nro. Operación</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in resultados_seguimiento %}
+                                        <tr>
+                                            <td>{{ p.fecha }}</td>
+                                            <td>{{ p.detalle }}</td>
+                                            <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                            <td>{{ p.codigo_operacion }}</td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">{{ p.estado }}</span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning text-center small">
+                                No se encontraron pedidos registrados con ese ID de jugador.
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted small">
+                            <i class="bi bi-search fs-3"></i>
+                            <p class="mt-2 mb-0">Ingresa tu ID arriba para consultar el estado en tiempo real de tus recargas.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        {% elif seccion == 'historial' %}
+            <!-- VISTA: HISTORIAL DE COMPRAS -->
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-secondary text-white fw-bold">
+                    📋 Historial de Compras
+                </div>
+                <div class="card-body">
+                    {% if historial %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>ID Destino</th>
+                                        <th>Productos</th>
+                                        <th>Total</th>
+                                        <th>Operación Yape</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for h in historial %}
+                                    <tr>
+                                        <td>{{ h.fecha }}</td>
+                                        <td><span class="badge bg-dark">{{ h.jugador_id }}</span></td>
+                                        <td>{{ h.detalle }}</td>
+                                        <td class="fw-bold text-success">S/ {{ h.total }}</td>
+                                        <td>{{ h.codigo_operacion }}</td>
+                                        <td>
+                                            {% if h.estado == 'Completado' %}
+                                                <span class="badge bg-success">Completado</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">{{ h.estado }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-clock-history fs-1 text-secondary mb-3"></i>
+                            <h5 class="fw-bold">Aún no registras compras anteriores</h5>
+                            <p class="text-muted small">Tus transacciones pagadas con Yape aparecerán aquí detalladas.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
