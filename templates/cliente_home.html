@@ -209,8 +209,14 @@
         {% elif seccion == 'seguimiento' %}
             <!-- VISTA: SEGUIMIENTO DE PEDIDO -->
             <div class="card shadow-sm border-info">
-                <div class="card-header bg-info text-white fw-bold">
-                    📦 Seguimiento de mi Pedido
+                <div class="card-header bg-info text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>📦 Seguimiento de mi Pedido</span>
+                    <!-- Botón de Soporte de WhatsApp agregado en la cabecera de la sección -->
+                    <a href="https://wa.me/51953136381?text=Hola,%20necesito%20soporte%20con%20el%20estado%20de%20mi%20pedido%20en%20WINDNEXX." 
+                       target="_blank" 
+                       class="btn btn-success btn-sm fw-bold">
+                        <i class="bi bi-whatsapp"></i> Soporte WhatsApp
+                    </a>
                 </div>
                 <div class="card-body">
                     <form action="{{ url_for('cliente_home') }}" method="GET" class="mb-4">
