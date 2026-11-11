@@ -49,7 +49,7 @@
                                 <th>Total</th>
                                 <th>Últimos 3 dígitos</th>
                                 <th>Nro. Operación</th>
-                                <th class="text-end">Acción</th>
+                                <th class="text-end">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -62,9 +62,10 @@
                                 <td><span class="badge bg-secondary">{{ p.telefono_digitos }}</span></td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold" onclick="return confirm('¿Validar pago y pasar a estado Recargando?')">
-                                        ✓ Validar y Recargar
+                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1" onclick="return confirm('¿Validar pago y pasar a estado Recargando?')">
+                                        ✓ Validar
                                     </a>
+                                    <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este pedido pendiente?');" title="Eliminar pedido">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
@@ -93,7 +94,7 @@
                                 <th>ID Jugador (Clic para copiar)</th>
                                 <th>Detalle</th>
                                 <th>Nro. Operación</th>
-                                <th class="text-end">Acción</th>
+                                <th class="text-end">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -110,9 +111,10 @@
                                 <td class="fw-semibold text-dark">{{ p.detalle }}</td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold" onclick="return confirm('¿Confirmar que la recarga ha finalizado?')">
-                                        🚀 Completar Envío
+                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold me-1" onclick="return confirm('¿Confirmar que la recarga ha finalizado?')">
+                                        🚀 Completar
                                     </a>
+                                    <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este pedido en recarga?');" title="Eliminar pedido">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
@@ -126,10 +128,13 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <!-- HISTORIAL DE ENVÍOS -->
-            <div class="card shadow-sm border-success">
-                <div class="card-header bg-success text-white fw-bold">
-                    📋 Historial de Envíos Realizados (Completados)
+            <!-- HISTORIAL DE ENVÍOS (Ventas de Hoy) -->
+            <div class="card shadow-sm border-success mb-4">
+                <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>📋 Historial de Envíos Realizados (Ventas de Hoy)</span>
+                    <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-warning btn-sm fw-bold text-dark" onclick="return confirm('¿Vaciar las ventas de hoy y enviarlas al archivo histórico lateral?');">
+                        🧹 Vaciar Historial de Hoy
+                    </a>
                 </div>
                 <div class="card-body p-0">
                     <table class="table table-striped align-middle mb-0 small">
@@ -142,11 +147,11 @@
                                 <th>Total</th>
                                 <th>Teléfono (3 dig)</th>
                                 <th>Operación Yape</th>
-                                <th>Estado</th>
+                                <th class="text-end">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for h in historial_envios %}
+                            {% for h in pedidos_hoy %}
                             <tr>
                                 <td>{{ h.fecha }}</td>
                                 <td class="fw-bold">{{ h.nombre_cliente }}</td>
@@ -155,17 +160,66 @@
                                 <td class="fw-bold text-success">S/ {{ h.total }}</td>
                                 <td><span class="badge bg-secondary">{{ h.telefono_digitos }}</span></td>
                                 <td><code>{{ h.codigo_operacion }}</code></td>
-                                <td><span class="badge bg-success">Completado</span></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este registro del historial?');" title="Eliminar">🗑️</a>
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">Aún no hay registros en el historial de envíos.</td>
+                                <td colspan="8" class="text-center py-4 text-muted">No hay ventas registradas hoy. ¡El historial está limpio para trabajar!</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <!-- PANELES DE ARCHIVO HISTÓRICO POR DÍAS ANTERIORES -->
+            {% if historicos_agrupados %}
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-secondary text-white fw-bold">
+                    📁 Archivo Histórico de Días Anteriores
+                </div>
+                <div class="card-body">
+                    {% for fecha_archivo, lista_pedidos in historicos_agrupados.items() %}
+                        <div class="card mb-3 border-light shadow-sm">
+                            <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
+                                <span>📅 Fecha / Lote: {{ fecha_archivo }}</span>
+                                <span class="badge bg-dark">{{ lista_pedidos|length }} pedidos</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm table-hover align-middle mb-0 small">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Hora/Fecha</th>
+                                            <th>Cliente</th>
+                                            <th>ID Destino</th>
+                                            <th>Detalle</th>
+                                            <th>Total</th>
+                                            <th class="text-end">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for h in lista_pedidos %}
+                                        <tr>
+                                            <td>{{ h.fecha }}</td>
+                                            <td class="fw-bold">{{ h.nombre_cliente }}</td>
+                                            <td><span class="badge bg-dark">{{ h.jugador_id }}</span></td>
+                                            <td>{{ h.detalle }}</td>
+                                            <td class="fw-bold text-success">S/ {{ h.total }}</td>
+                                            <td class="text-end">
+                                                <a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger" style="padding: 1px 6px; font-size: 11px;" onclick="return confirm('¿Eliminar este registro del archivo histórico?');" title="Eliminar">🗑️</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
         {% elif seccion == 'gestion_usuarios' %}
             <!-- GESTIÓN DE USUARIOS -->
@@ -254,7 +308,6 @@
 <script>
 function copiarTexto(texto, elemento) {
     navigator.clipboard.writeText(texto).then(function() {
-        // Cambiar el texto o color temporalmente para indicar que se copió
         let originalHTML = elemento.innerHTML;
         elemento.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
         elemento.classList.remove('bg-dark');
