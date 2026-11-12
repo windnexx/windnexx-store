@@ -1,15 +1,20 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- REPRODUCTOR DE AUDIO HTML5 ROBUSTO (Desbloqueado por el usuario) -->
+<audio id="timbre-audio" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+</audio>
+
 <!-- BOTÓN PARA ACTIVAR EL AUDIO Y NOTIFICACIONES -->
 <div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
   🔊 Haz clic aquí para activar las alertas sonoras en tiempo real (Obligatorio por única vez)
 </div>
 
-<!-- INDICADOR VISUAL DE ESTADO EN TIEMPO REAL -->
-<div id="estado-monitoreo" class="position-fixed bottom-0 start-0 p-2 m-2 bg-dark text-white rounded small shadow" style="z-index: 9998; opacity: 0.85;">
-  <span id="punto-conexion" class="spinner-grow spinner-grow-sm text-success" role="status"></span> 
-  <span id="texto-conexion">Monitoreando pedidos en vivo...</span>
+<!-- INDICADOR VISUAL OCULTO PARA LIMPIAR LA PANTALLA -->
+<div id="estado-monitoreo" class="d-none">
+  <span id="punto-conexion"></span> 
+  <span id="texto-conexion"></span>
 </div>
 
 <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
@@ -245,6 +250,7 @@
                             <tr>
                                 <th>Nombre</th>
                                 <th>Correo</th>
+                                <th>Teléfono</th>
                                 <th>Estado</th>
                                 <th class="text-end">Acciones</th>
                             </tr>
@@ -254,6 +260,7 @@
                             <tr>
                                 <td>{{ u.nombre }}</td>
                                 <td>{{ u.correo }}</td>
+                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                 <td><span class="badge bg-secondary">Pendiente</span></td>
                                 <td class="text-end">
                                     <a href="{{ url_for('confirmar_usuario', id=u.id) }}" class="btn btn-sm btn-success fw-bold me-1">Confirmar</a>
@@ -262,7 +269,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-3 text-muted">No hay registros pendientes.</td>
+                                <td colspan="5" class="text-center py-3 text-muted">No hay registros pendientes.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -280,6 +287,7 @@
                             <tr>
                                 <th>Nombre</th>
                                 <th>Correo</th>
+                                <th>Teléfono</th>
                                 <th>Categoría</th>
                                 <th class="text-end">Acción</th>
                             </tr>
@@ -289,6 +297,7 @@
                             <tr>
                                 <td>{{ u.nombre }}</td>
                                 <td>{{ u.correo }}</td>
+                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                 <td>
                                     <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST">
                                         <select name="categoria" class="form-select form-select-sm" style="width: 150px;" onchange="this.form.submit()">
@@ -304,7 +313,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-3 text-muted">No hay clientes confirmados.</td>
+                                <td colspan="5" class="text-center py-3 text-muted">No hay clientes confirmados.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -316,11 +325,9 @@
     </div>
 </div>
 
-<!-- SCRIPT DE MONITOREO DIRECTO ABSOLUTO -->
+<!-- SCRIPT DE MONITOREO AUTOMÁTICO CON AUDIO HTML5 -->
 <script>
-let audioContexto = null;
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
-
 let totalPedidosConocido = 0;
 let totalUsuariosConocido = 0;
 let sistemaActivo = false;
@@ -331,63 +338,46 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
     }
     
-    // Consulta inicial para registrar el conteo exacto actual en Supabase
     fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
             totalPedidosConocido = parseInt(data.total_pedidos || 0, 10);
             totalUsuariosConocido = parseInt(data.total_usuarios || 0, 10);
             sistemaActivo = true;
-            
-            document.getElementById('punto-conexion').className = 'spinner-grow spinner-grow-sm text-success';
-            document.getElementById('texto-conexion').innerText = 'Monitoreando (Total pedidos: ' + totalPedidosConocido + ')';
         })
         .catch(err => {
-            console.error("Error inicial:", err);
             sistemaActivo = true;
         });
 });
 
 function reproducirTimbreAlerta() {
-    try {
-        if (!audioContexto) {
-            audioContexto = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioActivado) {
+        const audio = document.getElementById('timbre-audio');
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(e => console.log("Audio play prevented:", e));
         }
-        if (audioContexto.state === 'suspended') {
-            audioContexto.resume();
-        }
-        const ahora = audioContexto.currentTime;
-        const osc = audioContexto.createOscillator();
-        const ganancia = audioContexto.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(587.33, ahora);       
-        osc.frequency.setValueAtTime(880.00, ahora + 0.15); 
-
-        ganancia.gain.setValueAtTime(0.6, ahora);
-        ganancia.gain.exponentialRampToValueAtTime(0.01, ahora + 0.8);
-
-        osc.connect(ganancia);
-        ganancia.connect(audioContexto.destination);
-
-        osc.start(ahora);
-        osc.stop(ahora + 0.8);
-    } catch (e) {
-        console.error("Error audio:", e);
     }
 }
 
 function activarAudioSistema() {
-    audioContexto = new (window.AudioContext || window.webkitAudioContext)();
-    audioActivado = true;
-    localStorage.setItem('windnexx_audio_activo', 'true');
-    reproducirTimbreAlerta();
-
-    const banner = document.getElementById('banner-activar-audio');
-    if (banner) {
-        banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
-        banner.innerHTML = '✅ Alertas de sonido activadas correctamente';
-        setTimeout(() => { banner.style.display = 'none'; }, 2000);
+    const audio = document.getElementById('timbre-audio');
+    if (audio) {
+        audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audioActivado = true;
+            localStorage.setItem('windnexx_audio_activo', 'true');
+            
+            const banner = document.getElementById('banner-activar-audio');
+            if (banner) {
+                banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
+                banner.innerHTML = '✅ Alertas de sonido y recarga automática ACTIVADAS';
+                setTimeout(() => { banner.style.display = 'none'; }, 2000);
+            }
+        }).catch(err => {
+            alert("Haz clic nuevamente para permitir el sonido.");
+        });
     }
 }
 
@@ -414,27 +404,25 @@ function verificarNovedadesAdmin() {
             }
 
             if (hayNovedad) {
-                if (audioActivado) {
-                    reproducirTimbreAlerta();
-                }
+                reproducirTimbreAlerta();
 
                 const contenedor = document.getElementById('contenedor-notificaciones');
-                const alertaDiv = document.createElement('div');
-                alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
-                alertaDiv.innerHTML = `
-                    <div>${mensaje}</div>
-                    <div class="small mt-1 text-dark">⚡ Actualizando tabla al instante...</div>
-                `;
-                contenedor.appendChild(alertaDiv);
+                if (contenedor) {
+                    const alertaDiv = document.createElement('div');
+                    alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
+                    alertaDiv.innerHTML = `
+                        <div>${mensaje}</div>
+                        <div class="small mt-1 text-dark">⚡ Actualizando tabla al instante...</div>
+                    `;
+                    contenedor.appendChild(alertaDiv);
+                }
 
                 setTimeout(() => {
                     location.reload();
-                }, 400);
+                }, 500);
             }
         })
-        .catch(err => {
-            console.log("Verificando...");
-        });
+        .catch(err => {});
 }
 
 // Consultar cada 2 segundos exactos

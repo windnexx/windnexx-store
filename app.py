@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -7,7 +7,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
 
-# Configuración de base de datos (Usa Supabase en la nube si existe DATABASE_URL, o SQLite localmente)
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -17,11 +16,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Modelo de Usuario
+# Modelo de Usuario con campo de teléfono opcional
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     correo = db.Column(db.String(100), unique=True, nullable=False)
+    telefono = db.Column(db.String(20), nullable=True, default='')
     password = db.Column(db.String(200), nullable=False)
     rol = db.Column(db.String(20), default='cliente')
     confirmado = db.Column(db.Boolean, default=False)
@@ -41,16 +41,15 @@ class Pedido(db.Model):
     fecha = db.Column(db.String(30), default=lambda: datetime.now().strftime('%d/%m/%Y %H:%M'))
     solo_fecha = db.Column(db.String(20), default=lambda: datetime.now().strftime('%d/%m/%Y'))
 
-# Inicializar Base de Datos y crear los administradores por defecto
 with app.app_context():
     db.create_all()
     
-    # 1. Administrador Principal: windnexx@gmail.com
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
             nombre='Administrador Windnexx',
             correo='windnexx@gmail.com',
+            telefono='999999999',
             password=generate_password_hash('2244Nexxxx'),
             rol='admin',
             confirmado=True,
@@ -58,12 +57,12 @@ with app.app_context():
         )
         db.session.add(nuevo_admin_1)
 
-    # 2. Segundo Administrador: croldan12345@gmail.com
     admin_2 = Usuario.query.filter_by(correo='croldan12345@gmail.com').first()
     if not admin_2:
         nuevo_admin_2 = Usuario(
             nombre='Administrador Carlos',
             correo='croldan12345@gmail.com',
+            telefono='999999999',
             password=generate_password_hash('masterkeyne9999'),
             rol='admin',
             confirmado=True,
@@ -73,14 +72,11 @@ with app.app_context():
         
     db.session.commit()
 
-# Precios unitarios
 PRECIOS = {
     'Fragmentos': 0.082,
     'Cajas': 0.45,
     'Pases': 3.00
 }
-
-# --- RUTAS DE NAVEGACIÓN ---
 
 @app.route('/')
 def index():
@@ -117,10 +113,11 @@ def register():
     if request.method == 'POST':
         nombre = request.form.get('nombre', '').strip()
         correo = request.form.get('correo', '').strip().lower()
+        telefono = request.form.get('telefono', '').strip() # Capturar teléfono opcional
         password = request.form.get('password', '')
         
         if not nombre or not correo or not password:
-            flash('Todos los campos son obligatorios.', 'danger')
+            flash('Todos los campos obligatorios son requeridos.', 'danger')
             return redirect(url_for('register'))
 
         if Usuario.query.filter_by(correo=correo).first():
@@ -131,6 +128,7 @@ def register():
         nuevo_usuario = Usuario(
             nombre=nombre,
             correo=correo,
+            telefono=telefono, # Guardar teléfono opcional
             password=hashed_password,
             rol='cliente',
             confirmado=False,
@@ -145,7 +143,6 @@ def register():
         
     return render_template('register.html')
 
-# Panel Administrador
 @app.route('/admin')
 def admin_panel():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
@@ -160,7 +157,6 @@ def admin_panel():
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
     
-    # Historial de envíos ordenados y separados por día actual y días anteriores
     hoy_str = datetime.now().strftime('%d/%m/%Y')
     historial_envios = Pedido.query.filter_by(estado='Completado').order_by(Pedido.id.desc()).all()
     
@@ -185,6 +181,23 @@ def admin_panel():
         historicos_agrupados=historicos_agrupados,
         seccion=seccion_admin
     )
+
+@app.route('/api/verificar-alertas')
+def verificar_alertas():
+    try:
+        total_pedidos = Pedido.query.count()
+        total_usuarios = Usuario.query.count()
+        ultimo_pedido = Pedido.query.order_by(Pedido.id.desc()).first()
+        ultimo_usuario = Usuario.query.order_by(Usuario.id.desc()).first()
+        
+        return jsonify({
+            "total_pedidos": total_pedidos,
+            "total_usuarios": total_usuarios,
+            "ultimo_pedido_id": ultimo_pedido.id if ultimo_pedido else 0,
+            "ultimo_usuario_id": ultimo_usuario.id if ultimo_usuario else 0
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/admin/confirmar/<int:id>')
 def confirmar_usuario(id):
@@ -277,7 +290,6 @@ def eliminar_usuario(id):
     flash(f'El usuario {usuario.nombre} ha sido eliminado.', 'info')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
-# Rutas del Cliente
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
