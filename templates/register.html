@@ -12,7 +12,7 @@
                         <input type="text" name="nombre" class="form-control" required placeholder="Juan Pérez">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Correo Electrónico</label>
+                        <label class="form-label">Correo Electrónico <span class="text-danger">*Se enviará un enlace de activación</span></label>
                         <input type="email" name="correo" class="form-control" required placeholder="correo@ejemplo.com">
                     </div>
                     <div class="mb-3">
@@ -23,7 +23,7 @@
                         <label class="form-label">Contraseña</label>
                         <input type="password" name="password" class="form-control" required placeholder="••••••••">
                     </div>
-                    <button type="submit" class="btn btn-success w-100 fw-bold">Solicitar Registro</button>
+                    <button type="submit" class="btn btn-success w-100 fw-bold">Solicitar Registro y Enviar Correo</button>
                 </form>
                 <hr class="my-4">
                 <p class="text-center mb-0">¿Ya tienes cuenta? <a href="{{ url_for('login') }}">Inicia sesión</a></p>

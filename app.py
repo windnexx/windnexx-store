@@ -1,12 +1,25 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
+
+# CONFIGURACIÓN DE FLASK-MAIL CON TUS CREDENCIALES
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'windnexx@gmail.com'
+app.config['MAIL_PASSWORD'] = 'radpdohmtippatbm'
+app.config['MAIL_DEFAULT_SENDER'] = 'windnexx@gmail.com'
+
+mail = Mail(app)
+serializer = URLSafeTimedSerializer(app.secret_key)
 
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 if db_url and db_url.startswith("postgres://"):
@@ -44,8 +57,6 @@ class Pedido(db.Model):
 
 with app.app_context():
     db.create_all()
-    
-    # Asegurar automáticamente que la columna telefono exista en la tabla usuario de PostgreSQL
     try:
         with db.engine.connect() as connection:
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);'))
@@ -53,7 +64,6 @@ with app.app_context():
     except Exception as e:
         print("Aviso al verificar columna telefono:", e)
     
-    # 1. Administrador Principal: windnexx@gmail.com
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
@@ -67,7 +77,6 @@ with app.app_context():
         )
         db.session.add(nuevo_admin_1)
 
-    # 2. Segundo Administrador: croldan12345@gmail.com
     admin_2 = Usuario.query.filter_by(correo='croldan12345@gmail.com').first()
     if not admin_2:
         nuevo_admin_2 = Usuario(
@@ -83,14 +92,11 @@ with app.app_context():
         
     db.session.commit()
 
-# Precios unitarios
 PRECIOS = {
     'Fragmentos': 0.082,
     'Cajas': 0.45,
     'Pases': 3.00
 }
-
-# --- RUTAS DE NAVEGACIÓN ---
 
 @app.route('/')
 def index():
@@ -106,7 +112,7 @@ def login():
         
         if usuario and check_password_hash(usuario.password, password):
             if not usuario.confirmado:
-                flash('Tu cuenta aún no ha sido confirmada por el administrador.', 'warning')
+                flash('Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada o spam.', 'warning')
                 return redirect(url_for('login'))
             
             session['usuario_id'] = usuario.id
@@ -152,12 +158,45 @@ def register():
         db.session.add(nuevo_usuario)
         db.session.commit()
         
-        flash('Registro exitoso. Un administrador debe aprobar tu cuenta antes de iniciar sesión.', 'success')
+        # Generar token y enviar correo de activación
+        token = serializer.dumps(correo, salt='email-confirm-salt')
+        enlace_confirmacion = url_for('confirmar_correo', token=token, _external=True)
+        
+        try:
+            msg = Message('Confirma tu cuenta en WINDNEXX Store', recipients=[correo])
+            msg.body = f"""Hola {nombre},\n\nGracias por registrarte en WINDNEXX Store. 
+Para activar tu cuenta y comenzar a realizar pedidos, por favor haz clic en el siguiente enlace:\n\n{enlace_confirmacion}\n\nSi no solicitaste este registro, puedes ignorar este mensaje.\n\nAtentamente,\nSoporte WINDNEXX"""
+            mail.send(msg)
+            flash('¡Registro exitoso! Hemos enviado un enlace de confirmación a tu correo. Revisa tu bandeja de entrada o spam.', 'success')
+        except Exception as e:
+            flash('Registro creado, pero hubo un error al enviar el correo automático.', 'warning')
+            print("Error enviando correo:", e)
+            
         return redirect(url_for('login'))
         
     return render_template('register.html')
 
-# Panel Administrador
+@app.route('/confirmar/<token>')
+def confirmar_correo(token):
+    try:
+        correo = serializer.loads(token, salt='email-confirm-salt', max_age=3600) # Válido por 1 hora
+    except Exception:
+        flash('El enlace de confirmación es inválido o ha expirado.', 'danger')
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.filter_by(correo=correo).first()
+    if usuario:
+        if usuario.confirmado:
+            flash('Tu cuenta ya había sido confirmada anteriormente.', 'info')
+        else:
+            usuario.confirmado = True
+            db.session.commit()
+            flash('¡Correo confirmado exitosamente! Ya puedes iniciar sesión en tu cuenta.', 'success')
+    else:
+        flash('Usuario no encontrado.', 'danger')
+        
+    return redirect(url_for('login'))
+
 @app.route('/admin')
 def admin_panel():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
@@ -197,7 +236,6 @@ def admin_panel():
         seccion=seccion_admin
     )
 
-# Ruta API abierta para verificar alertas en tiempo real sin bloqueos de sesión
 @app.route('/api/verificar-alertas')
 def verificar_alertas():
     try:
@@ -306,7 +344,6 @@ def eliminar_usuario(id):
     flash(f'El usuario {usuario.nombre} ha sido eliminado.', 'info')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
-# Rutas del Cliente
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
