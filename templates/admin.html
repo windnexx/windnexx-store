@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- BOTÓN PARA ACTIVAR EL AUDIO EN GOOGLE CHROME -->
+<div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
+  🔊 Haz clic aquí para activar las alertas sonoras y visuales en tiempo real (Obligatorio para Google Chrome)
+</div>
+
+<!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
+<div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+
 <div class="row">
     
     <!-- MENÚ LATERAL IZQUIERDO ADMINISTRADOR -->
@@ -304,22 +312,37 @@
     </div>
 </div>
 
-<!-- AUDIO Y SCRIPT DE ALERTAS EN TIEMPO REAL CON SONIDO -->
+<!-- AUDIO DE ALERTA -->
 <audio id="audio-alerta" preload="auto">
   <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
 </audio>
 
+<!-- SCRIPT DE TIEMPO REAL -->
 <script>
+let audioActivado = false;
 let inicializado = false;
 let ultimoPedidoConocido = null;
 let ultimoUsuarioConocido = null;
+
+// Función para habilitar el sonido cumpliendo la política de Google Chrome
+function activarAudioSistema() {
+    const audio = document.getElementById('audio-alerta');
+    audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audioActivado = true;
+        document.getElementById('banner-activar-audio').style.display = 'none';
+        console.log("¡Alertas de audio activadas con éxito!");
+    }).catch(e => {
+        alert("Por favor haz clic de nuevo para permitir el audio.");
+    });
+}
 
 function verificarNovedadesAdmin() {
     fetch('/api/verificar-alertas')
         .then(response => response.json())
         .then(data => {
             if (!inicializado) {
-                // Primera lectura al cargar la página para establecer la base
                 ultimoPedidoConocido = data.ultimo_pedido_id;
                 ultimoUsuarioConocido = data.ultimo_usuario_id;
                 inicializado = true;
@@ -330,10 +353,11 @@ function verificarNovedadesAdmin() {
 
             if (data.ultimo_pedido_id > ultimoPedidoConocido) {
                 huboCambios = true;
-                dispararAlertaSonoraVisual("📦 ¡Nuevo Pedido Recibido en WINDNEXX!");
-            } else if (data.ultimo_usuario_id > ultimoUsuarioConocido) {
+                lanzarNotificacionFlotante("📦 ¡Nuevo Pedido Recibido en WINDNEXX!");
+            } 
+            if (data.ultimo_usuario_id > ultimoUsuarioConocido) {
                 huboCambios = true;
-                dispararAlertaSonoraVisual("👤 ¡Nuevo Registro de Usuario Pendiente!");
+                lanzarNotificacionFlotante("👤 ¡Nuevo Registro de Usuario Pendiente!");
             }
 
             if (huboCambios) {
@@ -344,20 +368,26 @@ function verificarNovedadesAdmin() {
         .catch(err => console.log("Verificando alertas..."));
 }
 
-function dispararAlertaSonoraVisual(mensaje) {
-    // 1. Reproducir sonido de alerta
-    const audio = document.getElementById('audio-alerta');
-    if (audio) {
-        audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador hasta interactuar"));
+function lanzarNotificacionFlotante(mensaje) {
+    // Reproducir sonido si el usuario ya hizo clic en el banner amarillo
+    if (audioActivado) {
+        const audio = document.getElementById('audio-alerta');
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log("Error al reproducir audio"));
     }
 
-    // 2. Mostrar alerta visual flotante atractiva en pantalla
-    if (confirm(mensaje + "\n\n¿Deseas recargar la página para ver los cambios ahora?")) {
-        location.reload();
-    }
+    // Crear banner visual flotante en la esquina superior derecha
+    const contenedor = document.getElementById('contenedor-notificaciones');
+    const alertaDiv = document.createElement('div');
+    alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
+    alertaDiv.innerHTML = `
+        <div>${mensaje}</div>
+        <button class="btn btn-sm btn-dark mt-2 w-100" onclick="location.reload()">🔄 Actualizar Panel</button>
+    `;
+    contenedor.appendChild(alertaDiv);
 }
 
-// Consultar a la base de datos cada 5 segundos
+// Consultar la base de datos de Supabase cada 5 segundos
 setInterval(verificarNovedadesAdmin, 5000);
 
 // Función para copiar texto al portapapeles
