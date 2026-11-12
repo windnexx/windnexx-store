@@ -6,6 +6,12 @@
   🔊 Haz clic aquí para activar las alertas sonoras y de escritorio en tiempo real (Obligatorio por única vez)
 </div>
 
+<!-- INDICADOR VISUAL DE ESTADO EN TIEMPO REAL -->
+<div id="estado-monitoreo" class="position-fixed bottom-0 start-0 p-2 m-2 bg-dark text-white rounded small shadow" style="z-index: 9998; opacity: 0.85;">
+  <span id="punto-conexion" class="spinner-grow spinner-grow-sm text-warning" role="status"></span> 
+  <span id="texto-conexion">Conectando en tiempo real...</span>
+</div>
+
 <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
 <div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
 
@@ -336,12 +342,17 @@ function sincronizarEstadoInicial() {
             ultimoPedidoConocido = parseInt(data.ultimo_pedido_id || 0, 10);
             ultimoUsuarioConocido = parseInt(data.ultimo_usuario_id || 0, 10);
             sistemaIniciado = true;
+            
+            // Actualizar indicador visual
+            document.getElementById('punto-conexion').className = 'spinner-grow spinner-grow-sm text-success';
+            document.getElementById('texto-conexion').innerText = 'Monitoreando en vivo (ID: ' + ultimoPedidoConocido + ')';
             console.log("Sistema sincronizado. Último pedido ID:", ultimoPedidoConocido);
         })
         .catch(err => {
             console.error("Error en sincronización inicial:", err);
-            // Reintento en 1 segundo si falla la red de la nube
-            setTimeout(sincronizarEstadoInicial, 1000);
+            document.getElementById('punto-conexion').className = 'spinner-grow spinner-grow-sm text-danger';
+            document.getElementById('texto-conexion').innerText = 'Reconectando...';
+            setTimeout(sincronizarEstadoInicial, 2000);
         });
 }
 
@@ -397,7 +408,6 @@ function activarAudioSistema() {
 function verificarNovedadesAdmin() {
     if (!sistemaIniciado) return;
 
-    // Se agrega parámetro ?t= para evitar por completo el caché de Render o del navegador
     fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(response => {
             if (!response.ok) throw new Error('Error HTTP');
@@ -436,10 +446,10 @@ function verificarNovedadesAdmin() {
                 `;
                 contenedor.appendChild(alertaDiv);
 
-                // 3. Recargar la página automáticamente a los 500 milisegundos para mostrar el pedido en la tabla
+                // 3. Recargar la página automáticamente a los 400 milisegundos para mostrar el pedido en la tabla
                 setTimeout(() => {
                     location.reload();
-                }, 500);
+                }, 400);
             }
         })
         .catch(err => console.log("Verificando..."));
