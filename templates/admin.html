@@ -304,8 +304,63 @@
     </div>
 </div>
 
-<!-- SCRIPT DE JAVASCRIPT PARA COPIAR AL PORTAPAPELES -->
+<!-- AUDIO Y SCRIPT DE ALERTAS EN TIEMPO REAL CON SONIDO -->
+<audio id="audio-alerta" preload="auto">
+  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+</audio>
+
 <script>
+let inicializado = false;
+let ultimoPedidoConocido = null;
+let ultimoUsuarioConocido = null;
+
+function verificarNovedadesAdmin() {
+    fetch('/api/verificar-alertas')
+        .then(response => response.json())
+        .then(data => {
+            if (!inicializado) {
+                // Primera lectura al cargar la página para establecer la base
+                ultimoPedidoConocido = data.ultimo_pedido_id;
+                ultimoUsuarioConocido = data.ultimo_usuario_id;
+                inicializado = true;
+                return;
+            }
+
+            let huboCambios = false;
+
+            if (data.ultimo_pedido_id > ultimoPedidoConocido) {
+                huboCambios = true;
+                dispararAlertaSonoraVisual("📦 ¡Nuevo Pedido Recibido en WINDNEXX!");
+            } else if (data.ultimo_usuario_id > ultimoUsuarioConocido) {
+                huboCambios = true;
+                dispararAlertaSonoraVisual("👤 ¡Nuevo Registro de Usuario Pendiente!");
+            }
+
+            if (huboCambios) {
+                ultimoPedidoConocido = data.ultimo_pedido_id;
+                ultimoUsuarioConocido = data.ultimo_usuario_id;
+            }
+        })
+        .catch(err => console.log("Verificando alertas..."));
+}
+
+function dispararAlertaSonoraVisual(mensaje) {
+    // 1. Reproducir sonido de alerta
+    const audio = document.getElementById('audio-alerta');
+    if (audio) {
+        audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador hasta interactuar"));
+    }
+
+    // 2. Mostrar alerta visual flotante atractiva en pantalla
+    if (confirm(mensaje + "\n\n¿Deseas recargar la página para ver los cambios ahora?")) {
+        location.reload();
+    }
+}
+
+// Consultar a la base de datos cada 5 segundos
+setInterval(verificarNovedadesAdmin, 5000);
+
+// Función para copiar texto al portapapeles
 function copiarTexto(texto, elemento) {
     navigator.clipboard.writeText(texto).then(function() {
         let originalHTML = elemento.innerHTML;
