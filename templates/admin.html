@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- BOTÓN PARA ACTIVAR EL AUDIO EN GOOGLE CHROME -->
+<!-- BOTÓN PARA ACTIVAR EL AUDIO Y NOTIFICACIONES -->
 <div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
-  🔊 Haz clic aquí para activar las alertas sonoras y visuales en tiempo real (Obligatorio para Google Chrome)
+  🔊 Haz clic aquí para activar las alertas sonoras y de escritorio en tiempo real (Obligatorio)
 </div>
 
 <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
-<div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+<div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
 
 <div class="row">
     
@@ -19,7 +19,7 @@
             </div>
             <div class="list-group list-group-flush">
                 <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_pendientes' %}active fw-bold{% endif %}">
-                    📦 Pedidos Pendientes <span class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
+                    📦 Pedidos Pendientes <span id="badge-pendientes" class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_recargando' %}active fw-bold{% endif %}">
                     ⚡ Recargando <span class="badge bg-warning text-dark float-end">{{ pedidos_recargando|length }}</span>
@@ -28,7 +28,7 @@
                     📋 Historial de Envíos Realizados
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
-                    👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ pendientes|length }}</span>
+                    👥 Gestión de Usuarios <span id="badge-usuarios" class="badge bg-secondary float-end">{{ pendientes|length }}</span>
                 </a>
                 <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-danger fw-bold mt-3 border-top">
                     🚪 Cerrar Sesión
@@ -87,7 +87,7 @@
             </div>
 
         {% elif seccion == 'pedidos_recargando' %}
-            <!-- ESTADO: RECARGANDO (Con ID copiable con un clic) -->
+            <!-- ESTADO: RECARGANDO -->
             <div class="card shadow-sm border-warning">
                 <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
                     <span>⚡ Pedidos en Proceso de Recarga (Haz clic en el ID para copiarlo)</span>
@@ -111,7 +111,6 @@
                                 <td>{{ p.fecha }}</td>
                                 <td class="fw-bold">{{ p.nombre_cliente }}</td>
                                 <td>
-                                    <!-- ID con evento onclick para copiar al portapapeles -->
                                     <span class="badge bg-dark text-white px-2 py-1" style="cursor: pointer; font-size: 13px;" onclick="copiarTexto('{{ p.jugador_id }}', this)" title="Haz clic para copiar">
                                         <i class="bi bi-clipboard"></i> {{ p.jugador_id }}
                                     </span>
@@ -136,7 +135,7 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <!-- HISTORIAL DE ENVÍOS (Ventas de Hoy) -->
+            <!-- HISTORIAL DE ENVÍOS -->
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📋 Historial de Envíos Realizados (Ventas de Hoy)</span>
@@ -182,7 +181,6 @@
                 </div>
             </div>
 
-            <!-- PANELES DE ARCHIVO HISTÓRICO POR DÍAS ANTERIORES -->
             {% if historicos_agrupados %}
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-secondary text-white fw-bold">
@@ -312,83 +310,128 @@
     </div>
 </div>
 
-<!-- AUDIO DE ALERTA -->
-<audio id="audio-alerta" preload="auto">
-  <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
-</audio>
-
-<!-- SCRIPT DE TIEMPO REAL -->
+<!-- SCRIPT DE TIEMPO REAL BLINDADO -->
 <script>
+let audioContexto = null;
 let audioActivado = false;
-let inicializado = false;
-let ultimoPedidoConocido = null;
-let ultimoUsuarioConocido = null;
 
-// Función para habilitar el sonido cumpliendo la política de Google Chrome
+// Recuperar IDs guardados en el navegador para no perderlos al recargar
+let ultimoPedidoConocido = parseInt(localStorage.getItem('windnexx_ultimo_pedido') || '0', 10);
+let ultimoUsuarioConocido = parseInt(localStorage.getItem('windnexx_ultimo_usuario') || '0', 10);
+
+// Sonido tipo timbre profesional generado directamente por el navegador (sin archivos externos)
+function reproducirTimbreAlerta() {
+    if (!audioActivado) return;
+    try {
+        if (!audioContexto) {
+            audioContexto = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContexto.state === 'suspended') {
+            audioContexto.resume();
+        }
+
+        const ahora = audioContexto.currentTime;
+        const osc = audioContexto.createOscillator();
+        const ganancia = audioContexto.createGain();
+
+        osc.type = 'triangle';
+        // Doble tono ascendente tipo notificación
+        osc.frequency.setValueAtTime(587.33, ahora);       // Re5
+        osc.frequency.setValueAtTime(880.00, ahora + 0.15); // La5
+
+        ganancia.gain.setValueAtTime(0.3, ahora);
+        ganancia.gain.exponentialRampToValueAtTime(0.01, ahora + 0.5);
+
+        osc.connect(ganancia);
+        ganancia.connect(audioContexto.destination);
+
+        osc.start(ahora);
+        osc.stop(ahora + 0.5);
+    } catch (e) {
+        console.error("No se pudo reproducir el tono:", e);
+    }
+}
+
+// Activar audio y permisos de notificación de Chrome
 function activarAudioSistema() {
-    const audio = document.getElementById('audio-alerta');
-    audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        audioActivado = true;
-        document.getElementById('banner-activar-audio').style.display = 'none';
-        console.log("¡Alertas de audio activadas con éxito!");
-    }).catch(e => {
-        alert("Por favor haz clic de nuevo para permitir el audio.");
-    });
+    audioContexto = new (window.AudioContext || window.webkitAudioContext)();
+    audioActivado = true;
+    reproducirTimbreAlerta(); // Suena de prueba al hacer clic para confirmar que funciona
+
+    // Solicitar notificaciones de escritorio de Windows/Chrome
+    if ("Notification" in window && Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
+
+    const banner = document.getElementById('banner-activar-audio');
+    banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
+    banner.innerHTML = '✅ Alertas sonoras y visuales ACTIVADAS en tiempo real';
+    setTimeout(() => { banner.style.display = 'none'; }, 3000);
 }
 
 function verificarNovedadesAdmin() {
-    fetch('/api/verificar-alertas')
-        .then(response => response.json())
+    fetch('/api/verificar-alertas', { cache: 'no-store' })
+        .then(response => {
+            if (!response.ok) throw new Error('Error HTTP: ' + response.status);
+            return response.json();
+        })
         .then(data => {
-            if (!inicializado) {
-                ultimoPedidoConocido = data.ultimo_pedido_id;
-                ultimoUsuarioConocido = data.ultimo_usuario_id;
-                inicializado = true;
-                return;
+            const pedidoActual = parseInt(data.ultimo_pedido_id || 0, 10);
+            const usuarioActual = parseInt(data.ultimo_usuario_id || 0, 10);
+
+            // Si es la primera vez absoluta en este navegador, guarda la base sin disparar falsa alarma
+            if (ultimoPedidoConocido === 0 && pedidoActual > 0) {
+                ultimoPedidoConocido = pedidoActual;
+                localStorage.setItem('windnexx_ultimo_pedido', pedidoActual);
+            }
+            if (ultimoUsuarioConocido === 0 && usuarioActual > 0) {
+                ultimoUsuarioConocido = usuarioActual;
+                localStorage.setItem('windnexx_ultimo_usuario', usuarioActual);
             }
 
-            let huboCambios = false;
-
-            if (data.ultimo_pedido_id > ultimoPedidoConocido) {
-                huboCambios = true;
+            // Detectar nuevo pedido
+            if (pedidoActual > ultimoPedidoConocido) {
+                ultimoPedidoConocido = pedidoActual;
+                localStorage.setItem('windnexx_ultimo_pedido', pedidoActual);
                 lanzarNotificacionFlotante("📦 ¡Nuevo Pedido Recibido en WINDNEXX!");
-            } 
-            if (data.ultimo_usuario_id > ultimoUsuarioConocido) {
-                huboCambios = true;
+            }
+
+            // Detectar nuevo registro de usuario
+            if (usuarioActual > ultimoUsuarioConocido) {
+                ultimoUsuarioConocido = usuarioActual;
+                localStorage.setItem('windnexx_ultimo_usuario', usuarioActual);
                 lanzarNotificacionFlotante("👤 ¡Nuevo Registro de Usuario Pendiente!");
             }
-
-            if (huboCambios) {
-                ultimoPedidoConocido = data.ultimo_pedido_id;
-                ultimoUsuarioConocido = data.ultimo_usuario_id;
-            }
         })
-        .catch(err => console.log("Verificando alertas..."));
+        .catch(err => console.error("Fallo consultando /api/verificar-alertas:", err));
 }
 
 function lanzarNotificacionFlotante(mensaje) {
-    // Reproducir sonido si el usuario ya hizo clic en el banner amarillo
-    if (audioActivado) {
-        const audio = document.getElementById('audio-alerta');
-        audio.currentTime = 0;
-        audio.play().catch(e => console.log("Error al reproducir audio"));
+    // 1. Disparar timbre sonoro
+    reproducirTimbreAlerta();
+
+    // 2. Disparar notificación de Windows/Chrome (incluso si estás en otra pestaña)
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("WINDNEXX Admin", { body: mensaje });
     }
 
-    // Crear banner visual flotante en la esquina superior derecha
+    // 3. Crear tarjeta visual flotante en pantalla
     const contenedor = document.getElementById('contenedor-notificaciones');
     const alertaDiv = document.createElement('div');
     alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
     alertaDiv.innerHTML = `
-        <div>${mensaje}</div>
-        <button class="btn btn-sm btn-dark mt-2 w-100" onclick="location.reload()">🔄 Actualizar Panel</button>
+        <div class="d-flex justify-content-between align-items-start">
+            <span>${mensaje}</span>
+            <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+        <button class="btn btn-sm btn-dark mt-2 w-100" onclick="location.reload()">🔄 Actualizar Tabla Ahora</button>
     `;
     contenedor.appendChild(alertaDiv);
 }
 
-// Consultar la base de datos de Supabase cada 5 segundos
-setInterval(verificarNovedadesAdmin, 5000);
+// Ejecutar inmediatamente al abrir y luego cada 4 segundos
+verificarNovedadesAdmin();
+setInterval(verificarNovedadesAdmin, 4000);
 
 // Función para copiar texto al portapapeles
 function copiarTexto(texto, elemento) {
@@ -404,7 +447,7 @@ function copiarTexto(texto, elemento) {
             elemento.classList.add('bg-dark');
         }, 1200);
     }, function(err) {
-        alert('Error al intentar copiar el ID: ', err);
+        alert('Error al intentar copiar el ID: ' + err);
     });
 }
 </script>
