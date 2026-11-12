@@ -1,25 +1,12 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_mail import Mail, Message
-from itsdangerous import URLSafeTimedSerializer
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
-
-# CONFIGURACIÓN DE FLASK-MAIL CON TUS CREDENCIALES
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'windnexx@gmail.com'
-app.config['MAIL_PASSWORD'] = 'radpdohmtippatbm'
-app.config['MAIL_DEFAULT_SENDER'] = 'windnexx@gmail.com'
-
-mail = Mail(app)
-serializer = URLSafeTimedSerializer(app.secret_key)
 
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
 if db_url and db_url.startswith("postgres://"):
@@ -121,7 +108,7 @@ def login():
         
         if usuario and check_password_hash(usuario.password, password):
             if not usuario.confirmado:
-                flash('Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada o spam.', 'warning')
+                flash('Tu cuenta aún no ha sido aprobada por el administrador.', 'warning')
                 return redirect(url_for('login'))
             
             session['usuario_id'] = usuario.id
@@ -160,51 +147,17 @@ def register():
             telefono=telefono,
             password=hashed_password,
             rol='cliente',
-            confirmado=False,
+            confirmado=False,  # Queda en falso hasta que el admin lo apruebe
             categoria='Cliente'
         )
         
         db.session.add(nuevo_usuario)
         db.session.commit()
         
-        # Generar token seguro y enviar correo de activación
-        token = serializer.dumps(correo, salt='email-confirm-salt')
-        enlace_confirmacion = url_for('confirmar_correo', token=token, _external=True)
-        
-        try:
-            msg = Message('Confirma tu cuenta en WINDNEXX Store', recipients=[correo])
-            msg.body = f"""Hola {nombre},\n\nGracias por registrarte en WINDNEXX Store. 
-Para activar tu cuenta y comenzar a realizar pedidos, por favor haz clic en el siguiente enlace:\n\n{enlace_confirmacion}\n\nSi no creaste esta cuenta, puedes ignorar este mensaje.\n\nAtentamente,\nSoporte WINDNEXX"""
-            mail.send(msg)
-            flash('¡Registro exitoso! Hemos enviado un enlace de confirmación a tu correo. Revisa tu bandeja de entrada o spam.', 'success')
-        except Exception as e:
-            flash('Registro creado, pero hubo un error al enviar el correo automático.', 'warning')
-            print("Error enviando correo:", e)
-            
+        flash('Registro exitoso. Un administrador debe aprobar tu cuenta antes de iniciar sesión.', 'success')
         return redirect(url_for('login'))
         
     return render_template('register.html')
-
-@app.route('/confirmar/<token>')
-def confirmar_correo(token):
-    try:
-        correo = serializer.loads(token, salt='email-confirm-salt', max_age=3600) # Válido por 1 hora
-    except Exception:
-        flash('El enlace de confirmación es inválido o ha expirado.', 'danger')
-        return redirect(url_for('login'))
-        
-    usuario = Usuario.query.filter_by(correo=correo).first()
-    if usuario:
-        if usuario.confirmado:
-            flash('Tu cuenta ya había sido confirmada anteriormente.', 'info')
-        else:
-            usuario.confirmado = True
-            db.session.commit()
-            flash('¡Correo confirmado exitosamente! Ya puedes iniciar sesión en tu cuenta.', 'success')
-    else:
-        flash('Usuario no encontrado.', 'danger')
-        
-    return redirect(url_for('login'))
 
 # Panel Administrador
 @app.route('/admin')
