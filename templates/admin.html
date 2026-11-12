@@ -3,13 +3,13 @@
 {% block content %}
 <!-- BOTÓN PARA ACTIVAR EL AUDIO Y NOTIFICACIONES -->
 <div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
-  🔊 Haz clic aquí para activar las alertas sonoras y de escritorio en tiempo real (Obligatorio por única vez)
+  🔊 Haz clic aquí para activar las alertas sonoras en tiempo real (Obligatorio por única vez)
 </div>
 
 <!-- INDICADOR VISUAL DE ESTADO EN TIEMPO REAL -->
 <div id="estado-monitoreo" class="position-fixed bottom-0 start-0 p-2 m-2 bg-dark text-white rounded small shadow" style="z-index: 9998; opacity: 0.85;">
-  <span id="punto-conexion" class="spinner-grow spinner-grow-sm text-warning" role="status"></span> 
-  <span id="texto-conexion">Conectando en tiempo real...</span>
+  <span id="punto-conexion" class="spinner-grow spinner-grow-sm text-success" role="status"></span> 
+  <span id="texto-conexion">Monitoreando pedidos en vivo...</span>
 </div>
 
 <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
@@ -316,14 +316,14 @@
     </div>
 </div>
 
-<!-- SCRIPT DE TIEMPO REAL ULTRA RÁPIDO Y BLINDADO -->
+<!-- SCRIPT DE MONITOREO DIRECTO ABSOLUTO -->
 <script>
 let audioContexto = null;
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 
-let ultimoPedidoConocido = 0;
-let ultimoUsuarioConocido = 0;
-let sistemaIniciado = false;
+let totalPedidosConocido = 0;
+let totalUsuariosConocido = 0;
+let sistemaActivo = false;
 
 window.addEventListener('DOMContentLoaded', () => {
     if (audioActivado) {
@@ -331,32 +331,23 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
     }
     
-    // Calibración inicial inmediata forzada sin caché
-    sincronizarEstadoInicial();
-});
-
-function sincronizarEstadoInicial() {
+    // Consulta inicial para registrar el conteo exacto actual en Supabase
     fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
-            ultimoPedidoConocido = parseInt(data.ultimo_pedido_id || 0, 10);
-            ultimoUsuarioConocido = parseInt(data.ultimo_usuario_id || 0, 10);
-            sistemaIniciado = true;
+            totalPedidosConocido = parseInt(data.total_pedidos || 0, 10);
+            totalUsuariosConocido = parseInt(data.total_usuarios || 0, 10);
+            sistemaActivo = true;
             
-            // Actualizar indicador visual
             document.getElementById('punto-conexion').className = 'spinner-grow spinner-grow-sm text-success';
-            document.getElementById('texto-conexion').innerText = 'Monitoreando en vivo (ID: ' + ultimoPedidoConocido + ')';
-            console.log("Sistema sincronizado. Último pedido ID:", ultimoPedidoConocido);
+            document.getElementById('texto-conexion').innerText = 'Monitoreando (Total pedidos: ' + totalPedidosConocido + ')';
         })
         .catch(err => {
-            console.error("Error en sincronización inicial:", err);
-            document.getElementById('punto-conexion').className = 'spinner-grow spinner-grow-sm text-danger';
-            document.getElementById('texto-conexion').innerText = 'Reconectando...';
-            setTimeout(sincronizarEstadoInicial, 2000);
+            console.error("Error inicial:", err);
+            sistemaActivo = true;
         });
-}
+});
 
-// Generador de timbre de alerta con Web Audio API
 function reproducirTimbreAlerta() {
     try {
         if (!audioContexto) {
@@ -370,109 +361,96 @@ function reproducirTimbreAlerta() {
         const ganancia = audioContexto.createGain();
 
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(587.33, ahora);       // Re5
-        osc.frequency.setValueAtTime(880.00, ahora + 0.15); // La5
+        osc.frequency.setValueAtTime(587.33, ahora);       
+        osc.frequency.setValueAtTime(880.00, ahora + 0.15); 
 
-        ganancia.gain.setValueAtTime(0.5, ahora);
-        ganancia.gain.exponentialRampToValueAtTime(0.01, ahora + 0.7);
+        ganancia.gain.setValueAtTime(0.6, ahora);
+        ganancia.gain.exponentialRampToValueAtTime(0.01, ahora + 0.8);
 
         osc.connect(ganancia);
         ganancia.connect(audioContexto.destination);
 
         osc.start(ahora);
-        osc.stop(ahora + 0.7);
+        osc.stop(ahora + 0.8);
     } catch (e) {
-        console.error("Error reproduciendo audio:", e);
+        console.error("Error audio:", e);
     }
 }
 
-// Activar audio permanentemente (requerido por Chrome la primera vez)
 function activarAudioSistema() {
     audioContexto = new (window.AudioContext || window.webkitAudioContext)();
     audioActivado = true;
     localStorage.setItem('windnexx_audio_activo', 'true');
     reproducirTimbreAlerta();
 
-    if ("Notification" in window && Notification.permission !== "granted") {
-        Notification.requestPermission();
-    }
-
     const banner = document.getElementById('banner-activar-audio');
     if (banner) {
         banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
-        banner.innerHTML = '✅ Alertas de sonido y actualización automática ACTIVADAS';
+        banner.innerHTML = '✅ Alertas de sonido activadas correctamente';
         setTimeout(() => { banner.style.display = 'none'; }, 2000);
     }
 }
 
 function verificarNovedadesAdmin() {
-    if (!sistemaIniciado) return;
+    if (!sistemaActivo) return;
 
     fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
-        .then(response => {
-            if (!response.ok) throw new Error('Error HTTP');
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            const pedidoActual = parseInt(data.ultimo_pedido_id || 0, 10);
-            const usuarioActual = parseInt(data.ultimo_usuario_id || 0, 10);
+            const pedidosActuales = parseInt(data.total_pedidos || 0, 10);
+            const usuariosActuales = parseInt(data.total_usuarios || 0, 10);
 
-            let hayCambios = false;
-            let mensajeAlerta = "";
+            let hayNovedad = false;
+            let mensaje = "";
 
-            if (pedidoActual > ultimoPedidoConocido) {
-                ultimoPedidoConocido = pedidoActual;
-                mensajeAlerta = "📦 ¡Nuevo Pedido Recibido en WINDNEXX!";
-                hayCambios = true;
-            } else if (usuarioActual > ultimoUsuarioConocido) {
-                ultimoUsuarioConocido = usuarioActual;
-                mensajeAlerta = "👤 ¡Nuevo Registro de Usuario Pendiente!";
-                hayCambios = true;
+            if (pedidosActuales > totalPedidosConocido) {
+                totalPedidosConocido = pedidosActuales;
+                mensaje = "📦 ¡Nuevo Pedido Recibido!";
+                hayNovedad = true;
+            } else if (usuariosActuales > totalUsuariosConocido) {
+                totalUsuariosConocido = usuariosActuales;
+                mensaje = "👤 ¡Nuevo Usuario Registrado!";
+                hayNovedad = true;
             }
 
-            if (hayCambios) {
-                // 1. Reproducir sonido automáticamente
+            if (hayNovedad) {
                 if (audioActivado) {
                     reproducirTimbreAlerta();
                 }
 
-                // 2. Mostrar notificación flotante visual
                 const contenedor = document.getElementById('contenedor-notificaciones');
                 const alertaDiv = document.createElement('div');
                 alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
                 alertaDiv.innerHTML = `
-                    <div>${mensajeAlerta}</div>
-                    <div class="small mt-1 text-dark">⚡ Actualizando pantalla al instante...</div>
+                    <div>${mensaje}</div>
+                    <div class="small mt-1 text-dark">⚡ Actualizando tabla al instante...</div>
                 `;
                 contenedor.appendChild(alertaDiv);
 
-                // 3. Recargar la página automáticamente a los 400 milisegundos para mostrar el pedido en la tabla
                 setTimeout(() => {
                     location.reload();
                 }, 400);
             }
         })
-        .catch(err => console.log("Verificando..."));
+        .catch(err => {
+            console.log("Verificando...");
+        });
 }
 
-// Sondeo súper rápido cada 2 segundos exactos
+// Consultar cada 2 segundos exactos
 setInterval(verificarNovedadesAdmin, 2000);
 
-// Función para copiar ID al portapapeles
 function copiarTexto(texto, elemento) {
     navigator.clipboard.writeText(texto).then(function() {
         let originalHTML = elemento.innerHTML;
         elemento.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
         elemento.classList.remove('bg-dark');
         elemento.classList.add('bg-success');
-        
         setTimeout(function() {
             elemento.innerHTML = originalHTML;
             elemento.classList.remove('bg-success');
             elemento.classList.add('bg-dark');
         }, 1200);
-    }, function(err) {
-        alert('Error al intentar copiar el ID: ' + err);
     });
 }
 </script>
