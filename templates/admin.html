@@ -3,7 +3,7 @@
 {% block content %}
 <!-- BOTÓN PARA ACTIVAR EL AUDIO Y NOTIFICACIONES -->
 <div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
-  🔊 Haz clic aquí para activar las alertas sonoras y de escritorio en tiempo real (Obligatorio)
+  🔊 Haz clic aquí para activar las alertas sonoras y de escritorio en tiempo real (Obligatorio por única vez)
 </div>
 
 <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
@@ -310,18 +310,26 @@
     </div>
 </div>
 
-<!-- SCRIPT DE TIEMPO REAL BLINDADO -->
+<!-- SCRIPT DE TIEMPO REAL AUTOMÁTICO Y PERSISTENTE -->
 <script>
 let audioContexto = null;
-let audioActivado = false;
+// Cargar estado de audio guardado permanentemente en el navegador
+let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 
-// Recuperar IDs guardados en el navegador para no perderlos al recargar
 let ultimoPedidoConocido = parseInt(localStorage.getItem('windnexx_ultimo_pedido') || '0', 10);
 let ultimoUsuarioConocido = parseInt(localStorage.getItem('windnexx_ultimo_usuario') || '0', 10);
+let primeraVerificacion = true;
 
-// Sonido tipo timbre profesional generado directamente por el navegador (sin archivos externos)
+// Ocultar banner automáticamente si ya se había activado antes
+window.addEventListener('DOMContentLoaded', () => {
+    if (audioActivado) {
+        const banner = document.getElementById('banner-activar-audio');
+        if (banner) banner.style.display = 'none';
+    }
+});
+
+// Sonido tipo timbre profesional generado por el navegador
 function reproducirTimbreAlerta() {
-    if (!audioActivado) return;
     try {
         if (!audioContexto) {
             audioContexto = new (window.AudioContext || window.webkitAudioContext)();
@@ -335,7 +343,6 @@ function reproducirTimbreAlerta() {
         const ganancia = audioContexto.createGain();
 
         osc.type = 'triangle';
-        // Doble tono ascendente tipo notificación
         osc.frequency.setValueAtTime(587.33, ahora);       // Re5
         osc.frequency.setValueAtTime(880.00, ahora + 0.15); // La5
 
@@ -348,25 +355,28 @@ function reproducirTimbreAlerta() {
         osc.start(ahora);
         osc.stop(ahora + 0.5);
     } catch (e) {
-        console.error("No se pudo reproducir el tono:", e);
+        console.error("Error reproduciendo audio:", e);
     }
 }
 
-// Activar audio y permisos de notificación de Chrome
+// Activar audio permanentemente (requerido por Chrome la primera vez)
 function activarAudioSistema() {
     audioContexto = new (window.AudioContext || window.webkitAudioContext)();
     audioActivado = true;
-    reproducirTimbreAlerta(); // Suena de prueba al hacer clic para confirmar que funciona
+    localStorage.setItem('windnexx_audio_activo', 'true');
+    
+    reproducirTimbreAlerta(); // Timbre de prueba
 
-    // Solicitar notificaciones de escritorio de Windows/Chrome
     if ("Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
     }
 
     const banner = document.getElementById('banner-activar-audio');
-    banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
-    banner.innerHTML = '✅ Alertas sonoras y visuales ACTIVADAS en tiempo real';
-    setTimeout(() => { banner.style.display = 'none'; }, 3000);
+    if (banner) {
+        banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
+        banner.innerHTML = '✅ Alertas activadas permanentemente';
+        setTimeout(() => { banner.style.display = 'none'; }, 2000);
+    }
 }
 
 function verificarNovedadesAdmin() {
@@ -379,58 +389,59 @@ function verificarNovedadesAdmin() {
             const pedidoActual = parseInt(data.ultimo_pedido_id || 0, 10);
             const usuarioActual = parseInt(data.ultimo_usuario_id || 0, 10);
 
-            // Si es la primera vez absoluta en este navegador, guarda la base sin disparar falsa alarma
-            if (ultimoPedidoConocido === 0 && pedidoActual > 0) {
-                ultimoPedidoConocido = pedidoActual;
-                localStorage.setItem('windnexx_ultimo_pedido', pedidoActual);
-            }
-            if (ultimoUsuarioConocido === 0 && usuarioActual > 0) {
-                ultimoUsuarioConocido = usuarioActual;
-                localStorage.setItem('windnexx_ultimo_usuario', usuarioActual);
+            // Sincronizar por primera vez sin disparar alarmas falsas al abrir
+            if (primeraVerificacion) {
+                if (ultimoPedidoConocido === 0) {
+                    ultimoPedidoConocido = pedidoActual;
+                    localStorage.setItem('windnexx_ultimo_pedido', pedidoActual);
+                }
+                if (ultimoUsuarioConocido === 0) {
+                    ultimoUsuarioConocido = usuarioActual;
+                    localStorage.setItem('windnexx_ultimo_usuario', usuarioActual);
+                }
+                primeraVerificacion = false;
+                return;
             }
 
-            // Detectar nuevo pedido
+            // Si entra un pedido nuevo
             if (pedidoActual > ultimoPedidoConocido) {
                 ultimoPedidoConocido = pedidoActual;
                 localStorage.setItem('windnexx_ultimo_pedido', pedidoActual);
-                lanzarNotificacionFlotante("📦 ¡Nuevo Pedido Recibido en WINDNEXX!");
+                lanzarAlertaYActualizar("📦 ¡Nuevo Pedido Recibido en WINDNEXX!");
             }
-
-            // Detectar nuevo registro de usuario
-            if (usuarioActual > ultimoUsuarioConocido) {
+            // Si entra un registro de usuario nuevo
+            else if (usuarioActual > ultimoUsuarioConocido) {
                 ultimoUsuarioConocido = usuarioActual;
                 localStorage.setItem('windnexx_ultimo_usuario', usuarioActual);
-                lanzarNotificacionFlotante("👤 ¡Nuevo Registro de Usuario Pendiente!");
+                lanzarAlertaYActualizar("👤 ¡Nuevo Registro de Usuario Pendiente!");
             }
         })
-        .catch(err => console.error("Fallo consultando /api/verificar-alertas:", err));
+        .catch(err => console.log("Verificando en segundo plano..."));
 }
 
-function lanzarNotificacionFlotante(mensaje) {
-    // 1. Disparar timbre sonoro
-    reproducirTimbreAlerta();
-
-    // 2. Disparar notificación de Windows/Chrome (incluso si estás en otra pestaña)
-    if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("WINDNEXX Admin", { body: mensaje });
+function lanzarAlertaYActualizar(mensaje) {
+    // 1. Sonar timbre si el audio está activo
+    if (audioActivado) {
+        reproducirTimbreAlerta();
     }
 
-    // 3. Crear tarjeta visual flotante en pantalla
+    // 2. Notificación flotante visual en pantalla
     const contenedor = document.getElementById('contenedor-notificaciones');
     const alertaDiv = document.createElement('div');
     alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
     alertaDiv.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start">
-            <span>${mensaje}</span>
-            <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
-        </div>
-        <button class="btn btn-sm btn-dark mt-2 w-100" onclick="location.reload()">🔄 Actualizar Tabla Ahora</button>
+        <div>${mensaje}</div>
+        <div class="small mt-1 text-dark">🔄 Actualizando pantalla automáticamente...</div>
     `;
     contenedor.appendChild(alertaDiv);
+
+    // 3. Recargar la página automáticamente a los 2 segundos para ver el pedido reflejado
+    setTimeout(() => {
+        location.reload();
+    }, 2000);
 }
 
-// Ejecutar inmediatamente al abrir y luego cada 4 segundos
-verificarNovedadesAdmin();
+// Consultar automáticamente cada 4 segundos en segundo plano
 setInterval(verificarNovedadesAdmin, 4000);
 
 // Función para copiar texto al portapapeles
