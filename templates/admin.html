@@ -315,10 +315,9 @@
 let audioContexto = null;
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 
-// Sincronizar al cargar la página consultando inmediatamente el estado actual del servidor
 let ultimoPedidoConocido = 0;
 let ultimoUsuarioConocido = 0;
-let listoParaMonitorear = false;
+let sistemaIniciado = false;
 
 window.addEventListener('DOMContentLoaded', () => {
     if (audioActivado) {
@@ -326,20 +325,25 @@ window.addEventListener('DOMContentLoaded', () => {
         if (banner) banner.style.display = 'none';
     }
     
-    // Calibración inicial rápida al abrir el panel
-    fetch('/api/verificar-alertas', { cache: 'no-store' })
+    // Calibración inicial inmediata forzada sin caché
+    sincronizarEstadoInicial();
+});
+
+function sincronizarEstadoInicial() {
+    fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
         .then(data => {
             ultimoPedidoConocido = parseInt(data.ultimo_pedido_id || 0, 10);
             ultimoUsuarioConocido = parseInt(data.ultimo_usuario_id || 0, 10);
-            listoParaMonitorear = true; // A partir de aquí cualquier ID superior activará la alerta
+            sistemaIniciado = true;
+            console.log("Sistema sincronizado. Último pedido ID:", ultimoPedidoConocido);
         })
         .catch(err => {
-            ultimoPedidoConocido = parseInt(localStorage.getItem('windnexx_ultimo_pedido') || '0', 10);
-            ultimoUsuarioConocido = parseInt(localStorage.getItem('windnexx_ultimo_usuario') || '0', 10);
-            listoParaMonitorear = true;
+            console.error("Error en sincronización inicial:", err);
+            // Reintento en 1 segundo si falla la red de la nube
+            setTimeout(sincronizarEstadoInicial, 1000);
         });
-});
+}
 
 // Generador de timbre de alerta con Web Audio API
 function reproducirTimbreAlerta() {
@@ -358,14 +362,14 @@ function reproducirTimbreAlerta() {
         osc.frequency.setValueAtTime(587.33, ahora);       // Re5
         osc.frequency.setValueAtTime(880.00, ahora + 0.15); // La5
 
-        ganancia.gain.setValueAtTime(0.4, ahora);
-        ganancia.gain.exponentialRampToValueAtTime(0.01, ahora + 0.6);
+        ganancia.gain.setValueAtTime(0.5, ahora);
+        ganancia.gain.exponentialRampToValueAtTime(0.01, ahora + 0.7);
 
         osc.connect(ganancia);
         ganancia.connect(audioContexto.destination);
 
         osc.start(ahora);
-        osc.stop(ahora + 0.6);
+        osc.stop(ahora + 0.7);
     } catch (e) {
         console.error("Error reproduciendo audio:", e);
     }
@@ -391,9 +395,10 @@ function activarAudioSistema() {
 }
 
 function verificarNovedadesAdmin() {
-    if (!listoParaMonitorear) return;
+    if (!sistemaIniciado) return;
 
-    fetch('/api/verificar-alertas', { cache: 'no-store' })
+    // Se agrega parámetro ?t= para evitar por completo el caché de Render o del navegador
+    fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(response => {
             if (!response.ok) throw new Error('Error HTTP');
             return response.json();
@@ -431,10 +436,10 @@ function verificarNovedadesAdmin() {
                 `;
                 contenedor.appendChild(alertaDiv);
 
-                // 3. Recargar la página automáticamente a los 600 milisegundos (casi al instante)
+                // 3. Recargar la página automáticamente a los 500 milisegundos para mostrar el pedido en la tabla
                 setTimeout(() => {
                     location.reload();
-                }, 600);
+                }, 500);
             }
         })
         .catch(err => console.log("Verificando..."));
