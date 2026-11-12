@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
@@ -16,7 +17,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Modelo de Usuario con campo de teléfono opcional
+# Modelo de Usuario
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -44,6 +45,15 @@ class Pedido(db.Model):
 with app.app_context():
     db.create_all()
     
+    # Asegurar automáticamente que la columna telefono exista en la tabla usuario de PostgreSQL
+    try:
+        with db.engine.connect() as connection:
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);'))
+            connection.commit()
+    except Exception as e:
+        print("Aviso al verificar columna telefono:", e)
+    
+    # 1. Administrador Principal: windnexx@gmail.com
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
@@ -57,6 +67,7 @@ with app.app_context():
         )
         db.session.add(nuevo_admin_1)
 
+    # 2. Segundo Administrador: croldan12345@gmail.com
     admin_2 = Usuario.query.filter_by(correo='croldan12345@gmail.com').first()
     if not admin_2:
         nuevo_admin_2 = Usuario(
@@ -72,11 +83,14 @@ with app.app_context():
         
     db.session.commit()
 
+# Precios unitarios
 PRECIOS = {
     'Fragmentos': 0.082,
     'Cajas': 0.45,
     'Pases': 3.00
 }
+
+# --- RUTAS DE NAVEGACIÓN ---
 
 @app.route('/')
 def index():
@@ -113,7 +127,7 @@ def register():
     if request.method == 'POST':
         nombre = request.form.get('nombre', '').strip()
         correo = request.form.get('correo', '').strip().lower()
-        telefono = request.form.get('telefono', '').strip() # Capturar teléfono opcional
+        telefono = request.form.get('telefono', '').strip()
         password = request.form.get('password', '')
         
         if not nombre or not correo or not password:
@@ -128,7 +142,7 @@ def register():
         nuevo_usuario = Usuario(
             nombre=nombre,
             correo=correo,
-            telefono=telefono, # Guardar teléfono opcional
+            telefono=telefono,
             password=hashed_password,
             rol='cliente',
             confirmado=False,
@@ -143,6 +157,7 @@ def register():
         
     return render_template('register.html')
 
+# Panel Administrador
 @app.route('/admin')
 def admin_panel():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
@@ -182,6 +197,7 @@ def admin_panel():
         seccion=seccion_admin
     )
 
+# Ruta API abierta para verificar alertas en tiempo real sin bloqueos de sesión
 @app.route('/api/verificar-alertas')
 def verificar_alertas():
     try:
@@ -290,6 +306,7 @@ def eliminar_usuario(id):
     flash(f'El usuario {usuario.nombre} ha sido eliminado.', 'info')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
+# Rutas del Cliente
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
