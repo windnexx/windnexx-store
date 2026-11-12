@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,8 +7,12 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
 
-# Configuración de base de datos SQLite
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+# Configuración de base de datos (Usa Supabase en la nube si existe DATABASE_URL, o SQLite localmente)
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///database.db')
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
