@@ -245,7 +245,7 @@ def crear_codigo():
             flash('El código ya existe.', 'danger')
     else:
         flash('Datos inválidos para el código promocional.', 'danger')
-    return redirect(url_for('admin_panel', seccion='historial_envios'))
+    return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/admin/eliminar_codigo/<int:id>')
 def eliminar_codigo(id):
@@ -255,7 +255,7 @@ def eliminar_codigo(id):
     db.session.delete(cp)
     db.session.commit()
     flash('Código promocional eliminado.', 'info')
-    return redirect(url_for('admin_panel', seccion='historial_envios'))
+    return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/api/verificar-alertas')
 def verificar_alertas():

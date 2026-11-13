@@ -8,7 +8,7 @@
 
 <!-- BOTÓN PARA ACTIVAR EL AUDIO Y NOTIFICACIONES -->
 <div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
-  🔊 Haz clic aquí para activar las alertas sonoras en tiempo real (Obligatorio por única vez)
+  🔊 Haz clic aquí para activar las alertas sonoras y notificaciones en tiempo real (Obligatorio por única vez)
 </div>
 
 <!-- INDICADOR VISUAL OCULTO PARA LIMPIAR LA PANTALLA -->
@@ -37,6 +37,10 @@
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action {% if seccion == 'historial_envios' %}active fw-bold{% endif %}">
                     📋 Historial de Envíos Realizados
+                </a>
+                <!-- CÓDIGOS PROMOCIONALES UBICADOS EXACTAMENTE ENTRE HISTORIAL Y GESTIÓN DE USUARIOS -->
+                <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action {% if seccion == 'codigos_promo' %}active fw-bold{% endif %}">
+                    🎟️ Códigos Promocionales <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
                     👥 Gestión de Usuarios <span id="badge-usuarios" class="badge bg-secondary float-end">{{ pendientes|length }}</span>
@@ -200,53 +204,6 @@
                 </div>
             </div>
 
-            <!-- MÓDULO DE CÓDIGOS PROMOCIONALES DEBAJO DEL HISTORIAL -->
-            <div class="card shadow-sm border-info mb-4">
-                <div class="card-header bg-info text-white fw-bold">
-                    🎟️ Gestión de Códigos Promocionales
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-2 mb-3 align-items-end">
-                        <div class="col-md-5">
-                            <label class="form-label small fw-bold">Código:</label>
-                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label small fw-bold">Porcentaje de Descuento (%):</label>
-                            <input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Ej. 10" required>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button>
-                        </div>
-                    </form>
-
-                    <table class="table table-sm table-bordered align-middle small mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Código</th>
-                                <th>Descuento</th>
-                                <th class="text-end">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for cp in codigos_promo %}
-                            <tr>
-                                <td class="fw-bold text-primary">{{ cp.codigo }}</td>
-                                <td>{{ cp.descuento_porcentaje }}%</td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="3" class="text-center text-muted">No hay códigos promocionales creados.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             {% if historicos_agrupados %}
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-secondary text-white fw-bold">
@@ -292,6 +249,55 @@
                 </div>
             </div>
             {% endif %}
+
+        {% elif seccion == 'codigos_promo' %}
+            <!-- MÓDULO EXCLUSIVO DE GESTIÓN DE CÓDIGOS PROMOCIONALES -->
+            <div class="card shadow-sm border-info mb-4">
+                <div class="card-header bg-info text-white fw-bold">
+                    🎟️ Gestión de Códigos Promocionales
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-2 mb-4 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Código:</label>
+                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Porcentaje de Descuento (%):</label>
+                            <input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Ej. 10" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button>
+                        </div>
+                    </form>
+
+                    <h6 class="fw-bold text-dark mb-2">Códigos Activos en el Sistema</h6>
+                    <table class="table table-sm table-bordered align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descuento</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cp in codigos_promo %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ cp.codigo }}</td>
+                                <td>{{ cp.descuento_porcentaje }}%</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">No hay códigos promocionales creados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
         {% elif seccion == 'gestion_usuarios' %}
             <!-- GESTIÓN DE USUARIOS - SOLICITUDES DE RESTABLECIMIENTO -->
@@ -422,7 +428,7 @@
     </div>
 </div>
 
-<!-- SCRIPT DE MONITOREO CON AUDIO HTML5 -->
+<!-- SCRIPT DE MONITOREO MEJORADO (Actualización cada 1 segundo y audio garantizado) -->
 <script>
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 let totalPedidosConocido = 0;
@@ -469,7 +475,7 @@ function activarAudioSistema() {
             const banner = document.getElementById('banner-activar-audio');
             if (banner) {
                 banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
-                banner.innerHTML = '✅ Alertas de sonido y recarga automática ACTIVADAS';
+                banner.innerHTML = '✅ Alertas de sonido y notificaciones en tiempo real ACTIVADAS';
                 setTimeout(() => { banner.style.display = 'none'; }, 2000);
             }
         }).catch(err => {
@@ -509,20 +515,21 @@ function verificarNovedadesAdmin() {
                     alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
                     alertaDiv.innerHTML = `
                         <div>${mensaje}</div>
-                        <div class="small mt-1 text-dark">⚡ Actualizando tabla al instante...</div>
+                        <div class="small mt-1 text-dark">⚡ Actualizando panel al instante...</div>
                     `;
                     contenedor.appendChild(alertaDiv);
                 }
 
                 setTimeout(() => {
                     location.reload();
-                }, 500);
+                }, 800);
             }
         })
         .catch(err => {});
 }
 
-setInterval(verificarNovedadesAdmin, 2000);
+// Intervalo reducido a 1000ms (1 segundo) para notificaciones ultrarrápidas
+setInterval(verificarNovedadesAdmin, 1000);
 
 function copiarTexto(texto, elemento) {
     navigator.clipboard.writeText(texto).then(function() {

@@ -29,8 +29,8 @@
     <!-- CONTENEDOR PRINCIPAL -->
     <div class="container-fluid px-4">
         
-        <!-- Mensajes Flash de Alerta -->
-        with messages = get_flashed_messages(with_categories=true)
+        <!-- Mensajes Flash de Alerta Corregidos -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
@@ -39,7 +39,7 @@
                     </div>
                 {% endfor %}
             {% endif %}
-        endwith
+        {% endwith %}
 
         {% block content %}{% endblock %}
     </div>
