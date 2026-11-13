@@ -10,6 +10,9 @@
                 <i class="bi bi-list"></i> Menú Principal
             </div>
             <div class="list-group list-group-flush">
+                <a href="{{ url_for('cliente_home', seccion='perfil') }}" class="list-group-item list-group-item-action {% if seccion == 'perfil' %}active fw-bold{% endif %}">
+                    👤 Mi Perfil
+                </a>
                 <a href="{{ url_for('cliente_home', seccion='catalogo') }}" class="list-group-item list-group-item-action {% if seccion == 'catalogo' or seccion == 'pago_yape' %}active fw-bold{% endif %}">
                     🛍️ Catálogo de Productos
                 </a>
@@ -19,6 +22,9 @@
                 <a href="{{ url_for('cliente_home', seccion='historial') }}" class="list-group-item list-group-item-action {% if seccion == 'historial' %}active fw-bold{% endif %}">
                     📋 Historial de Compras
                 </a>
+                <a href="{{ url_for('cliente_home', seccion='amigo_referidos') }}" class="list-group-item list-group-item-action {% if seccion == 'amigo_referidos' %}active fw-bold{% endif %}">
+                    🤝 Amigo Referidos
+                </a>
             </div>
         </div>
     </div>
@@ -26,7 +32,148 @@
     <!-- CONTENIDO PRINCIPAL (Derecha) -->
     <div class="col-md-9">
 
-        {% if seccion == 'catalogo' %}
+        {% if seccion == 'perfil' %}
+            <!-- VISTA: MI PERFIL -->
+            <div class="card shadow-sm border-dark">
+                <div class="card-header bg-dark text-white fw-bold text-uppercase">
+                    👤 Información de Mi Perfil
+                </div>
+                <div class="card-body">
+                    
+                    <!-- RANGO Y BARRA DE PROGRESO ARRIBA EN EL CENTRO -->
+                    <div class="text-center mb-4 p-3 bg-light rounded border">
+                        <h5 class="fw-bold text-secondary mb-2">Rango Actual</h5>
+                        
+                        {% if usuario.rango == 'Plata' %}
+                            <img src="{{ url_for('static', filename='plata.png') }}" class="mb-2" style="width: 70px; height: 70px; object-fit: contain;" alt="Rango Plata" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112946.png'">
+                            <h4 class="text-primary fw-bold">Rango Plata 🥈</h4>
+                        {% else %}
+                            <img src="{{ url_for('static', filename='bronce.png') }}" class="mb-2" style="width: 70px; height: 70px; object-fit: contain;" alt="Rango Bronce" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112944.png'">
+                            <h4 class="text-warning fw-bold">Rango Bronce 🥉</h4>
+                        {% endif %}
+
+                        <div class="w-75 mx-auto mt-3">
+                            <div class="d-flex justify-content-between small fw-bold mb-1">
+                                <span>Progreso a Plata: {{ puntos_fragmentos }} / {{ meta_rango }} Fragmentos</span>
+                                <span>{{ progreso_porcentaje }}%</span>
+                            </div>
+                            <div class="progress" style="height: 15px;">
+                                <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ progreso_porcentaje }}%;" aria-valuenow="{{ progreso_porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div class="form-text mt-1 text-muted small">Al acumular 5000 fragmentos en compras, tu cuenta asciende a Rango Plata.</div>
+                        </div>
+                    </div>
+
+                    <!-- DATOS PERSONALES Y ESTADÍSTICAS TOTALES -->
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded border h-100">
+                                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Datos de la Cuenta</h6>
+                                <p class="mb-2"><strong>Nombre:</strong> {{ usuario.nombre }}</p>
+                                <p class="mb-2"><strong>Correo:</strong> {{ usuario.correo }}</p>
+                                <p class="mb-0"><strong>Teléfono:</strong> {{ usuario.telefono if usuario.telefono else 'No registrado' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded border h-100">
+                                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Estadísticas Totales Compradas</h6>
+                                <p class="mb-2"><strong>Total Pases Comprados:</strong> <span class="badge bg-primary">{{ total_pases }}</span></p>
+                                <p class="mb-2"><strong>Total Fragmentos Comprados:</strong> <span class="badge bg-info text-dark">{{ total_fragmentos }}</span></p>
+                                <p class="mb-0"><strong>Total Cajas Compradas:</strong> <span class="badge bg-secondary">{{ total_cajas }}</span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LISTA DE REFERIDOS HECHOS -->
+                    <div class="mt-4">
+                        <h6 class="fw-bold text-dark mb-3">🤝 Mis Amigos Referidos</h6>
+                        {% if mis_referidos %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Amigo Registrado</th>
+                                            <th>Fecha de Registro</th>
+                                            <th>Estado de Compra (Pase 1456 Fragmentos)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ref in mis_referidos %}
+                                            {% set amigo = Usuario.query.get(ref.referido_id) %}
+                                            <tr>
+                                                <td class="fw-bold">{{ amigo.nombre if amigo else 'Usuario' }}</td>
+                                                <td>{{ ref.fecha }}</td>
+                                                <td>
+                                                    {% if ref.meta_cumplida %}
+                                                        <span class="badge bg-success">Meta Cumplida (¡Premio Activo!)</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark">Pendiente de comprar pase (1456 fragmentos)</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-light border text-center small text-muted py-3">
+                                Aún no has invitado a ningún amigo. ¡Comparte tu código desde la sección "Amigo Referidos"!
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+
+        {% elif seccion == 'amigo_referidos' %}
+            <!-- VISTA: AMIGO REFERIDOS -->
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white fw-bold">
+                    🤝 Sistema de Amigo Referido
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6 class="fw-bold">¿Cómo funciona?</h6>
+                        <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren un pase equivalente a <strong>1456 fragmentos</strong>, ¡ambos recibirán increíbles beneficios y cupones de descuento!</p>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-light rounded border text-center">
+                        <label class="form-label fw-bold text-secondary">Tu Código de Referido Personal:</label>
+                        <div class="input-group w-50 mx-auto">
+                            <input type="text" id="inputCodigoRef" class="form-control text-center fw-bold fs-5 text-primary" value="{{ usuario.codigo_referido }}" readonly>
+                            <button class="btn btn-outline-success fw-bold" type="button" onclick="copiarCodigoReferido()">Copiar</button>
+                        </div>
+                    </div>
+
+                    {% if not usuario.referido_por_id %}
+                        <form action="{{ url_for('cliente_home') }}" method="GET" class="p-3 bg-light rounded border">
+                            <input type="hidden" name="seccion" value="amigo_referidos">
+                            <label class="form-label fw-bold small text-dark">¿Te invitó un amigo? Ingresa su código aquí (Solo cuentas nuevas):</label>
+                            <div class="input-group input-group-sm w-75">
+                                <input type="text" name="codigo_patrocinador" class="form-control" placeholder="Ej. WIND-1-ABCD">
+                                <button class="btn btn-dark fw-bold" type="submit">Vincular Código</button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="alert alert-success text-center small">
+                            ✓ Ya estás vinculado con el código de tu patrocinador exitosamente.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <script>
+            function copiarCodigoReferido() {
+                const copyText = document.getElementById("inputCodigoRef");
+                copyText.select();
+                copyText.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(copyText.value);
+                alert("¡Código de referido copiado al portapapeles!");
+            }
+            </script>
+
+        {% elif seccion == 'catalogo' %}
             <!-- VISTA: CATÁLOGO Y CARRITO -->
             <div class="row">
                 <div class="col-md-7">
@@ -139,13 +286,11 @@
                                     </div>
                                 </div>
 
-                                <!-- Formulario que solicita el ID del jugador y pasa a la pantalla de pago -->
                                 <form action="{{ url_for('preparar_pago') }}" method="POST">
                                     <div class="mb-3">
                                         <label class="form-label small fw-bold text-secondary">ID de cuenta del jugador:</label>
                                         <input type="text" name="jugador_id" class="form-control form-control-sm" placeholder="Ingresa tu ID de destino" required>
                                     </div>
-
                                     <button type="submit" class="btn btn-success w-100 fw-bold btn-sm mb-2">Pagar</button>
                                 </form>
 
@@ -160,10 +305,8 @@
             </div>
 
         {% elif seccion == 'pago_yape' %}
-            <!-- VISTA: PASARELA DE PAGO CON QR GIGANTE Y CAMPOS ANCHOS -->
+            <!-- VISTA: PASARELA DE PAGO YAPE -->
             <div class="row g-4 align-items-start">
-                
-                <!-- COLUMNA IZQUIERDA: BLOQUE MORADO CON QR GIGANTE -->
                 <div class="col-md-5">
                     <div class="p-4 rounded shadow-sm text-center" style="background-color: #6a1b9a;">
                         <p class="text-white fw-bold mb-3 small">Escanea el código QR con tu aplicación Yape:</p>
@@ -174,15 +317,12 @@
                     </div>
                 </div>
 
-                <!-- COLUMNA DERECHA: BLOQUE VERDE CON RESUMEN Y CAMPOS AJUSTADOS -->
                 <div class="col-md-7">
                     <div class="card shadow border-success">
                         <div class="card-header bg-success text-white fw-bold text-center py-3 fs-5">
                             Pago Yape - Finalizar Compra
                         </div>
                         <div class="card-body p-4">
-                            
-                            <!-- Resumen del Pedido -->
                             <div class="mb-3 p-3 bg-light rounded border">
                                 <p class="fw-bold text-dark mb-2 small">Resumen del Pedido:</p>
                                 <ul class="mb-3 ps-3 small text-muted">
@@ -196,56 +336,39 @@
                                     <span class="badge bg-dark fs-6 px-3 py-2">{{ session.get('jugador_id_temp') }}</span>
                                 </div>
 
-                                {% if codigo_aplicado %}
-                                <div class="d-flex justify-content-between align-items-center text-success small mb-1">
-                                    <span>Código Promo ({{ codigo_aplicado }}):</span>
-                                    <span>-S/ {{ descuento_monto }}</span>
-                                </div>
-                                {% endif %}
-
                                 <div class="d-flex justify-content-between align-items-center pt-1 fs-5 text-danger fw-bold">
                                     <span>Monto Total a Pagar:</span>
                                     <span>S/ {{ total_final }}</span>
                                 </div>
                             </div>
 
-                            <!-- Formulario con campos ajustados (Teléfono más ancho y título correcto) -->
                             <form action="{{ url_for('pagar_yape') }}" method="POST">
                                 <div class="row g-2 mb-3">
-                                    <!-- Últimos 3 dígitos del número (más ancho: col-md-5) -->
                                     <div class="col-md-5">
                                         <label class="form-label fw-bold text-dark" style="font-size: 11px;">Últimos 3 dígitos del número:</label>
                                         <input type="text" name="telefono_digitos" class="form-control text-center fw-bold text-primary" maxlength="3" placeholder="Ej. 842" required>
                                     </div>
-                                    <!-- Número de operación Yape (col-md-7) -->
                                     <div class="col-md-7">
                                         <label class="form-label fw-bold text-dark" style="font-size: 11px;">Número de Operación Yape:</label>
                                         <input type="text" name="codigo_operacion" class="form-control text-center fw-bold text-primary" placeholder="Nro. operación" required autofocus>
                                     </div>
                                 </div>
-                                <div class="form-text text-muted mb-3 text-center" style="font-size: 11px;">Introduce los datos de tu comprobante Yape para proceder con la validación.</div>
-
                                 <div class="d-flex gap-2">
                                     <a href="{{ url_for('cliente_home', seccion='catalogo') }}" class="btn btn-outline-secondary w-50 fw-bold btn-sm">Regresar al Carrito</a>
                                     <button type="submit" class="btn btn-success w-50 fw-bold btn-sm">Pagar</button>
                                 </div>
                             </form>
-
                         </div>
                     </div>
                 </div>
-
             </div>
 
         {% elif seccion == 'seguimiento' %}
-            <!-- VISTA: SEGUIMIENTO DE PEDIDO -->
+            <!-- SEGUIMIENTO DE PEDIDO -->
             <div class="card shadow-sm border-info">
                 <div class="card-header bg-info text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📦 Seguimiento de mi Pedido</span>
-                    <!-- Botón de Soporte de WhatsApp agregado en la cabecera de la sección -->
-                    <a href="https://wa.me/51953136381?text=Hola,%20necesito%20soporte%20con%20el%20estado%20de%20mi%20pedido%20en%20WINDNEXX." 
-                       target="_blank" 
-                       class="btn btn-success btn-sm fw-bold">
+                    <a href="https://wa.me/51953136381?text=Hola,%20necesito%20soporte%20con%20el%20estado%20de%20mi%20pedido%20en%20WINDNEXX." target="_blank" class="btn btn-success btn-sm fw-bold">
                         <i class="bi bi-whatsapp"></i> Soporte WhatsApp
                     </a>
                 </div>
@@ -265,13 +388,7 @@
                             <div class="table-responsive">
                                 <table class="table table-striped table-bordered align-middle small">
                                     <thead class="table-light">
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Detalle</th>
-                                            <th>Total</th>
-                                            <th>Nro. Operación</th>
-                                            <th>Estado</th>
-                                        </tr>
+                                        <tr><th>Fecha</th><th>Detalle</th><th>Total</th><th>Nro. Operación</th><th>Estado</th></tr>
                                     </thead>
                                     <tbody>
                                         {% for p in resultados_seguimiento %}
@@ -280,18 +397,14 @@
                                             <td>{{ p.detalle }}</td>
                                             <td class="fw-bold text-success">S/ {{ p.total }}</td>
                                             <td>{{ p.codigo_operacion }}</td>
-                                            <td>
-                                                <span class="badge bg-warning text-dark">{{ p.estado }}</span>
-                                            </td>
+                                            <td><span class="badge bg-warning text-dark">{{ p.estado }}</span></td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-warning text-center small">
-                                No se encontraron pedidos registrados con ese ID de jugador.
-                            </div>
+                            <div class="alert alert-warning text-center small">No se encontraron pedidos registrados con ese ID de jugador.</div>
                         {% endif %}
                     {% else %}
                         <div class="text-center py-4 text-muted small">
@@ -303,7 +416,7 @@
             </div>
 
         {% elif seccion == 'historial' %}
-            <!-- VISTA: HISTORIAL DE COMPRAS -->
+            <!-- HISTORIAL DE COMPRAS -->
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-secondary text-white fw-bold">
                     📋 Historial de Compras
@@ -313,14 +426,7 @@
                         <div class="table-responsive">
                             <table class="table table-hover align-middle small">
                                 <thead class="table-light">
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>ID Destino</th>
-                                        <th>Productos</th>
-                                        <th>Total</th>
-                                        <th>Operación Yape</th>
-                                        <th>Estado</th>
-                                    </tr>
+                                    <tr><th>Fecha</th><th>ID Destino</th><th>Productos</th><th>Total</th><th>Operación Yape</th><th>Estado</th></tr>
                                 </thead>
                                 <tbody>
                                     {% for h in historial %}
@@ -356,7 +462,6 @@
     </div>
 </div>
 
-<!-- PULSO SILENCIOSO PARA MANTENER ESTADO "EN LÍNEA" -->
 <script>
 setInterval(() => {
     fetch('/api/ping').catch(() => {});

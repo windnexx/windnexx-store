@@ -1,17 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- REPRODUCTOR DE AUDIO HTML5 ROBUSTO -->
 <audio id="timbre-audio" preload="auto">
     <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
 </audio>
 
-<!-- BOTÓN PARA ACTIVAR EL AUDIO Y NOTIFICACIONES -->
 <div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-sm" style="cursor: pointer;" onclick="activarAudioSistema()">
   🔊 Haz clic aquí para activar las alertas sonoras y notificaciones en tiempo real (Obligatorio por única vez)
 </div>
 
-<!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
 <div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
 
 <div class="row">
@@ -49,7 +46,6 @@
     <div class="col-md-9">
 
         {% if seccion == 'pedidos_pendientes' %}
-            <!-- PEDIDOS PENDIENTES -->
             <div class="card shadow-sm border-primary">
                 <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📦 Pedidos Pendientes (Validación de Pago Yape)</span>
@@ -58,16 +54,7 @@
                 <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Cliente</th>
-                                <th>ID Jugador</th>
-                                <th>Total</th>
-                                <th>Descuento / Promo</th>
-                                <th>Últimos 3 dígitos</th>
-                                <th>Nro. Operación</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
+                            <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador</th><th>Total</th><th>Descuento / Promo</th><th>Últimos 3 dígitos</th><th>Nro. Operación</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             {% for p in pedidos_validacion %}
@@ -86,16 +73,12 @@
                                 <td><span class="badge bg-secondary">{{ p.telefono_digitos }}</span></td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1" onclick="return confirm('¿Validar pago y pasar a estado Recargando?')">
-                                        ✓ Validar
-                                    </a>
+                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1" onclick="return confirm('¿Validar pago y pasar a estado Recargando?')">✓ Validar</a>
                                     <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este pedido pendiente?');" title="Eliminar pedido">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">No hay pagos pendientes por validar.</td>
-                            </tr>
+                            <tr><td colspan="8" class="text-center py-4 text-muted">No hay pagos pendientes por validar.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -103,7 +86,6 @@
             </div>
 
         {% elif seccion == 'pedidos_recargando' %}
-            <!-- RECARGANDO -->
             <div class="card shadow-sm border-warning">
                 <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
                     <span>⚡ Pedidos en Proceso de Recarga</span>
@@ -112,14 +94,7 @@
                 <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Cliente</th>
-                                <th>ID Jugador (Clic para copiar)</th>
-                                <th>Detalle</th>
-                                <th>Nro. Operación</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
+                            <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador (Clic para copiar)</th><th>Detalle</th><th>Nro. Operación</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             {% for p in pedidos_recargando %}
@@ -134,16 +109,12 @@
                                 <td class="fw-semibold text-dark">{{ p.detalle }}</td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold me-1" onclick="return confirm('¿Confirmar que la recarga ha finalizado?')">
-                                        🚀 Completar
-                                    </a>
+                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold me-1" onclick="return confirm('¿Confirmar que la recarga ha finalizado?')">🚀 Completar</a>
                                     <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este pedido en recarga?');" title="Eliminar pedido">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">No hay recargas en curso actualmente.</td>
-                            </tr>
+                            <tr><td colspan="6" class="text-center py-4 text-muted">No hay recargas en curso actualmente.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -151,27 +122,15 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <!-- HISTORIAL -->
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📋 Historial de Envíos Realizados (Ventas de Hoy)</span>
-                    <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-warning btn-sm fw-bold text-dark" onclick="return confirm('¿Vaciar las ventas de hoy y enviarlas al archivo histórico lateral?');">
-                        🧹 Vaciar Historial de Hoy
-                    </a>
+                    <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-warning btn-sm fw-bold text-dark" onclick="return confirm('¿Vaciar las ventas de hoy y enviarlas al archivo histórico lateral?');">🧹 Vaciar Historial de Hoy</a>
                 </div>
                 <div class="card-body p-0">
                     <table class="table table-striped align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Cliente</th>
-                                <th>ID Destino</th>
-                                <th>Detalle</th>
-                                <th>Total</th>
-                                <th>Teléfono (3 dig)</th>
-                                <th>Operación Yape</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
+                            <tr><th>Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th>Teléfono (3 dig)</th><th>Operación Yape</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             {% for h in pedidos_hoy %}
@@ -188,72 +147,24 @@
                                 </td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="8" class="text-center py-4 text-muted">No hay ventas registradas hoy. ¡El historial está limpio para trabajar!</td>
-                            </tr>
+                            <tr><td colspan="8" class="text-center py-4 text-muted">No hay ventas registradas hoy.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            {% if historicos_agrupados %}
-            <div class="card shadow-sm border-secondary">
-                <div class="card-header bg-secondary text-white fw-bold">
-                    📁 Archivo Histórico de Días Anteriores
-                </div>
-                <div class="card-body">
-                    {% for fecha_archivo, lista_pedidos in historicos_agrupados.items() %}
-                        <div class="card mb-3 border-light shadow-sm">
-                            <div class="card-header bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
-                                <span>📅 Fecha / Lote: {{ fecha_archivo }}</span>
-                                <span class="badge bg-dark">{{ lista_pedidos|length }} pedidos</span>
-                            </div>
-                            <div class="card-body p-0">
-                                <table class="table table-sm table-hover align-middle mb-0 small">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Hora/Fecha</th>
-                                            <th>Cliente</th>
-                                            <th>ID Destino</th>
-                                            <th>Detalle</th>
-                                            <th>Total</th>
-                                            <th class="text-end">Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for h in lista_pedidos %}
-                                        <tr>
-                                            <td>{{ h.fecha }}</td>
-                                            <td class="fw-bold">{{ h.nombre_cliente }}</td>
-                                            <td><span class="badge bg-dark">{{ h.jugador_id }}</span></td>
-                                            <td>{{ h.detalle }}</td>
-                                            <td class="fw-bold text-success">S/ {{ h.total }}</td>
-                                            <td class="text-end">
-                                                <a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger" style="padding: 1px 6px; font-size: 11px;" onclick="return confirm('¿Eliminar este registro del archivo histórico?');" title="Eliminar">🗑️</a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
         {% elif seccion == 'codigos_promo' %}
-            <!-- CÓDIGOS PROMOCIONALES -->
+            <!-- CÓDIGOS PROMOCIONALES Y PREMIOS DE REFERIDOS -->
             <div class="card shadow-sm border-info mb-4">
                 <div class="card-header bg-info text-white fw-bold">
-                    🎟️ Gestión de Códigos Promocionales y Límites de Uso
+                    🎟️ Gestión de Códigos Promocionales, Límites y Premios de Referidos
                 </div>
                 <div class="card-body">
                     <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-3 mb-4 align-items-end">
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Código:</label>
-                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
+                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. PREMIOREF10" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold">Descuento (%):</label>
@@ -272,53 +183,64 @@
                             <input type="number" name="max_usos_primeras" class="form-control form-control-sm" value="0" placeholder="Ej. 10">
                         </div>
                         <div class="col-md-2">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="es_premio_referido" id="es_premio_referido">
+                                <label class="form-check-label small fw-bold text-dark" for="es_premio_referido">Premio Amigo Referido</label>
+                            </div>
                             <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button>
                         </div>
                     </form>
 
-                    <h6 class="fw-bold text-dark mb-2">Códigos Activos y Estadísticas de Uso</h6>
-                    <table class="table table-sm table-bordered align-middle small mb-0">
+                    <h6 class="fw-bold text-dark mb-2">Códigos Activos y Premios Configurados</h6>
+                    <table class="table table-sm table-bordered align-middle small mb-3">
                         <thead class="table-light">
-                            <tr>
-                                <th>Código</th>
-                                <th>Descuento</th>
-                                <th>Regla de Uso</th>
-                                <th>Usos Totales / Límite</th>
-                                <th class="text-end">Acción</th>
-                            </tr>
+                            <tr><th>Código</th><th>Descuento</th><th>Regla de Uso</th><th>Premio Referido?</th><th class="text-end">Acción</th></tr>
                         </thead>
                         <tbody>
                             {% for cp in codigos_promo %}
                             <tr>
                                 <td class="fw-bold text-primary">{{ cp.codigo }}</td>
                                 <td>{{ cp.descuento_porcentaje }}%</td>
-                                <td>
-                                    {% if cp.tipo_limite == 'una_por_cuenta' %}
-                                        <span class="badge bg-secondary">Una vez por cuenta</span>
-                                    {% elif cp.tipo_limite == 'primeras_cuentas' %}
-                                        <span class="badge bg-warning text-dark">Primeras {{ cp.max_usos_primeras }} cuentas</span>
-                                    {% else %}
-                                        <span class="badge bg-success">Ilimitado</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if cp.tipo_limite == 'primeras_cuentas' %}
-                                        {{ cp.usos_actuales }} / {{ cp.max_usos_primeras }}
-                                    {% else %}
-                                        {{ cp.usos_actuales }} usos
-                                    {% endif %}
-                                </td>
+                                <td>{{ cp.tipo_limite }}</td>
+                                <td>{% if cp.es_premio_referido %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
                                 <td class="text-end">
                                     <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted py-3">No hay códigos promocionales creados.</td>
-                            </tr>
+                            <tr><td colspan="5" class="text-center text-muted py-3">No hay códigos creados.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
+
+                    <!-- TABLA DE REGISTRO DE REFERIDOS EN EL ADMIN -->
+                    <h6 class="fw-bold text-dark mb-2 mt-4">👥 Registro y Control de Referidos Global</h6>
+                    <table class="table table-sm table-bordered align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr><th>Patrocinador (Quien invita)</th><th>Amigo Invitado</th><th>Fecha</th><th>Estado de Meta (Pase 1456 Fragmentos)</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ref in registros_referidos %}
+                                {% set pat = Usuario.query.get(ref.patrocinador_id) %}
+                                {% set amg = Usuario.query.get(ref.referido_id) %}
+                                <tr>
+                                    <td class="fw-bold text-primary">{{ pat.nombre if pat else 'Usuario' }}</td>
+                                    <td>{{ amg.nombre if amg else 'Usuario' }}</td>
+                                    <td>{{ ref.fecha }}</td>
+                                    <td>
+                                        {% if ref.meta_cumplida %}
+                                            <span class="badge bg-success">Meta Cumplida ✓</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark">Pendiente de compra</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">No hay registros de referidos todavía.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
                 </div>
             </div>
 
@@ -334,102 +256,14 @@
             </script>
 
         {% elif seccion == 'gestion_usuarios' %}
-            <!-- SOLICITUDES DE RESTABLECIMIENTO -->
-            <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold">
-                    🔑 Clientes - Restablecer Contraseña
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0 small">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Correo</th>
-                                <th>Teléfono</th>
-                                <th>Nueva Contraseña</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for u in solicitudes_reset %}
-                            <tr>
-                                <td>{{ u.nombre }}</td>
-                                <td>{{ u.correo }}</td>
-                                <td>{{ u.telefono }}</td>
-                                <td>
-                                    <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="d-flex gap-1">
-                                        <input type="text" name="nueva_password" class="form-control form-control-sm" placeholder="Nueva clave" required>
-                                        <button type="submit" class="btn btn-sm btn-success fw-bold">Guardar</button>
-                                    </form>
-                                </td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar esta solicitud?')">Eliminar</a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-3 text-muted">No hay solicitudes de restablecimiento de contraseña.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- PENDIENTES DE REGISTRO -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header bg-secondary text-white fw-bold">
-                    Usuarios Pendientes de Confirmación (Registro)
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0 small">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Correo</th>
-                                <th>Teléfono</th>
-                                <th>Estado</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for u in pendientes %}
-                            <tr>
-                                <td>{{ u.nombre }}</td>
-                                <td>{{ u.correo }}</td>
-                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
-                                <td><span class="badge bg-secondary">Pendiente</span></td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('confirmar_usuario', id=u.id) }}" class="btn btn-sm btn-success fw-bold me-1">Confirmar</a>
-                                    <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro?')">Eliminar</a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-3 text-muted">No hay registros pendientes.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- CLIENTES REGISTRADOS CON ESTADO EN TIEMPO REAL -->
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white fw-bold">
-                    Clientes Registrados y Categorización
+                    Clientes Registrados y Estado en Línea
                 </div>
                 <div class="card-body p-0">
                     <table class="table table-striped align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr>
-                                <th>Estado</th>
-                                <th>Nombre</th>
-                                <th>Correo</th>
-                                <th>Teléfono</th>
-                                <th>Categoría</th>
-                                <th class="text-end">Acción</th>
-                            </tr>
+                            <tr><th>Estado</th><th>Nombre</th><th>Correo</th><th>Rango</th><th>Categoría</th><th class="text-end">Acción</th></tr>
                         </thead>
                         <tbody>
                             {% for u in confirmados %}
@@ -437,22 +271,20 @@
                                 <td>
                                     {% if u.en_linea %}
                                         <span id="badge-estado-{{ u.id }}" class="d-inline-flex align-items-center text-success fw-bold" title="En línea">
-                                            <span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span>
-                                            En línea
+                                            <span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span> En línea
                                         </span>
                                     {% else %}
                                         <span id="badge-estado-{{ u.id }}" class="d-inline-flex align-items-center text-muted" title="Desconectado">
-                                            <span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span>
-                                            Desconectado
+                                            <span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span> Desconectado
                                         </span>
                                     {% endif %}
                                 </td>
                                 <td class="fw-semibold">{{ u.nombre }}</td>
                                 <td>{{ u.correo }}</td>
-                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
+                                <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
                                 <td>
                                     <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST">
-                                        <select name="categoria" class="form-select form-select-sm" style="width: 150px;" onchange="this.form.submit()">
+                                        <select name="categoria" class="form-select form-select-sm" style="width: 140px;" onchange="this.form.submit()">
                                             <option value="Supercliente" {% if u.categoria == 'Supercliente' %}selected{% endif %}>⭐ Supercliente</option>
                                             <option value="Cliente" {% if u.categoria == 'Cliente' %}selected{% endif %}>👤 Cliente</option>
                                             <option value="Otros" {% if u.categoria == 'Otros' %}selected{% endif %}>📁 Otros</option>
@@ -464,9 +296,7 @@
                                 </td>
                             </tr>
                             {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center py-3 text-muted">No hay clientes confirmados.</td>
-                            </tr>
+                            <tr><td colspan="6" class="text-center py-3 text-muted">No hay clientes confirmados.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -477,7 +307,6 @@
     </div>
 </div>
 
-<!-- SCRIPT DE MONITOREO Y ACTUALIZACIÓN EN VIVO DE ESTADOS -->
 <script>
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 let totalPedidosConocido = 0;
@@ -497,9 +326,7 @@ window.addEventListener('DOMContentLoaded', () => {
             totalUsuariosConocido = parseInt(data.total_usuarios || 0, 10);
             sistemaActivo = true;
         })
-        .catch(err => {
-            sistemaActivo = true;
-        });
+        .catch(err => { sistemaActivo = true; });
 });
 
 function reproducirTimbreAlerta() {
@@ -520,23 +347,19 @@ function activarAudioSistema() {
             audio.currentTime = 0;
             audioActivado = true;
             localStorage.setItem('windnexx_audio_activo', 'true');
-            
             const banner = document.getElementById('banner-activar-audio');
             if (banner) {
                 banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
                 banner.innerHTML = '✅ Alertas de sonido y notificaciones en tiempo real ACTIVADAS';
                 setTimeout(() => { banner.style.display = 'none'; }, 2000);
             }
-        }).catch(err => {
-            alert("Haz clic nuevamente para permitir el sonido.");
-        });
+        }).catch(err => { alert("Haz clic nuevamente para permitir el sonido."); });
     }
 }
 
 function verificarNovedadesAdmin() {
     if (!sistemaActivo) return;
 
-    // 1. Verificar nuevos pedidos o registros
     fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(response => response.json())
         .then(data => {
@@ -562,10 +385,7 @@ function verificarNovedadesAdmin() {
                 if (contenedor) {
                     const alertaDiv = document.createElement('div');
                     alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
-                    alertaDiv.innerHTML = `
-                        <div>${mensaje}</div>
-                        <div class="small mt-1 text-dark">⚡ Actualizando panel al instante...</div>
-                    `;
+                    alertaDiv.innerHTML = `<div>${mensaje}</div><div class="small mt-1 text-dark">⚡ Actualizando panel al instante...</div>`;
                     contenedor.appendChild(alertaDiv);
                 }
                 setTimeout(() => { location.reload(); }, 800);
@@ -573,7 +393,6 @@ function verificarNovedadesAdmin() {
         })
         .catch(err => {});
 
-    // 2. Actualizar estados En línea / Desconectado en tiempo real (si está en la sección de gestión de usuarios)
     {% if seccion == 'gestion_usuarios' %}
     fetch('/api/estado-usuarios?t=' + Date.now(), { cache: 'no-store' })
         .then(res => res.json())
@@ -597,7 +416,6 @@ function verificarNovedadesAdmin() {
     {% endif %}
 }
 
-// Comprobación cada 3 segundos
 setInterval(verificarNovedadesAdmin, 3000);
 
 function copiarTexto(texto, elemento) {

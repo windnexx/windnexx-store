@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from sqlalchemy import text
 
 app = Flask(__name__)
@@ -17,6 +18,12 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# Zona horaria de Lima, Perú
+TIMEZONE_LIMA = ZoneInfo("America/Lima")
+
+def hora_lima():
+    return datetime.now(TIMEZONE_LIMA)
+
 # Modelo de Usuario
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -29,21 +36,34 @@ class Usuario(db.Model):
     categoria = db.Column(db.String(20), default='Cliente')
     solicitud_reset = db.Column(db.Boolean, default=False)
     ultima_actividad = db.Column(db.DateTime, nullable=True)
+    # Campos de referidos y rangos
+    codigo_referido = db.Column(db.String(20), unique=True, nullable=True)
+    referido_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
+    rango = db.Column(db.String(20), default='Bronce')
 
-# Modelo de Código Promocional Actualizado
+# Modelo de Código Promocional y Premios de Referidos
 class CodigoPromo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
     descuento_porcentaje = db.Column(db.Float, nullable=False)
-    tipo_limite = db.Column(db.String(20), default='ilimitado') # 'ilimitado', 'una_por_cuenta', 'primeras_cuentas'
+    tipo_limite = db.Column(db.String(20), default='ilimitado')
     max_usos_primeras = db.Column(db.Integer, default=0) 
     usos_actuales = db.Column(db.Integer, default=0)
+    es_premio_referido = db.Column(db.Boolean, default=False) # Para configurar el premio automático de referidos
 
-# Tabla auxiliar para llevar el control de qué usuario ya usó qué código ("una vez por cuenta")
+# Tabla auxiliar para control de códigos usados
 class UsoCodigoUsuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     codigo_id = db.Column(db.Integer, db.ForeignKey('codigo_promo.id'), nullable=False)
+
+# Registro de Referidos
+class RegistroReferido(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    referido_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    meta_cumplida = db.Column(db.Boolean, default=False)
+    fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
 
 # Modelo de Pedido
 class Pedido(db.Model):
@@ -58,8 +78,8 @@ class Pedido(db.Model):
     codigo_promo = db.Column(db.String(50), nullable=True, default='')
     descuento_aplicado = db.Column(db.Float, nullable=True, default=0.0)
     estado = db.Column(db.String(50), default='Validación de pago') 
-    fecha = db.Column(db.String(30), default=lambda: datetime.now().strftime('%d/%m/%Y %H:%M'))
-    solo_fecha = db.Column(db.String(20), default=lambda: datetime.now().strftime('%d/%m/%Y'))
+    fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
+    solo_fecha = db.Column(db.String(20), default=lambda: hora_lima().strftime('%d/%m/%Y'))
 
 with app.app_context():
     db.create_all()
@@ -71,15 +91,24 @@ with app.app_context():
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS categoria VARCHAR(20) DEFAULT \'Cliente\';'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS solicitud_reset BOOLEAN DEFAULT FALSE;'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS ultima_actividad TIMESTAMP;'))
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS codigo_referido VARCHAR(20);'))
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS referido_por_id INTEGER;'))
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS rango VARCHAR(20) DEFAULT \'Bronce\';'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_limite VARCHAR(20) DEFAULT \'ilimitado\';'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS max_usos_primeras INTEGER DEFAULT 0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS usos_actuales INTEGER DEFAULT 0;'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS es_premio_referido BOOLEAN DEFAULT FALSE;'))
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
+    # Asignar códigos de referido a usuarios antiguos que no tengan
+    for u in Usuario.query.filter_by(codigo_referido=None).all():
+        u.codigo_referido = f"WIND-{u.id}-{os.urandom(2).hex().upper()}"
+    db.session.commit()
+
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
@@ -89,7 +118,8 @@ with app.app_context():
             password=generate_password_hash('2244Nexxxx'),
             rol='admin',
             confirmado=True,
-            categoria='Supercliente'
+            categoria='Supercliente',
+            codigo_referido='WIND-ADMIN-1'
         )
         db.session.add(nuevo_admin_1)
 
@@ -102,25 +132,39 @@ with app.app_context():
             password=generate_password_hash('masterkeyne9999'),
             rol='admin',
             confirmado=True,
-            categoria='Supercliente'
+            categoria='Supercliente',
+            codigo_referido='WIND-ADMIN-2'
         )
         db.session.add(nuevo_admin_2)
         
     db.session.commit()
 
-# Actualiza la marca de tiempo del usuario activo en cada interacción
 @app.before_request
 def actualizar_actividad_usuario():
     if 'usuario_id' in session and request.endpoint != 'static':
         usuario = db.session.get(Usuario, session['usuario_id'])
         if usuario:
-            usuario.ultima_actividad = datetime.utcnow()
+            usuario.ultima_actividad = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None)
             db.session.commit()
 
-# Ruta silenciosa para mantener el estado "En línea" mientras el cliente tiene la web abierta
 @app.route('/api/ping')
 def ping_actividad():
     return jsonify({"status": "ok"})
+
+@app.route('/api/estado-usuarios')
+def api_estado_usuarios():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return jsonify({}), 403
+    
+    usuarios = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
+    limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
+    
+    resultado = {}
+    for u in usuarios:
+        en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
+        resultado[u.id] = en_linea
+        
+    return jsonify(resultado)
 
 PRECIOS = {
     'Fragmentos': 0.082,
@@ -149,7 +193,7 @@ def login():
             session['nombre'] = usuario.nombre
             session['rol'] = usuario.rol
             
-            usuario.ultima_actividad = datetime.utcnow()
+            usuario.ultima_actividad = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None)
             db.session.commit()
             
             if usuario.rol == 'admin':
@@ -168,6 +212,7 @@ def register():
         correo = request.form.get('correo', '').strip().lower()
         telefono = request.form.get('telefono', '').strip()
         password = request.form.get('password', '')
+        codigo_invitacion = request.form.get('codigo_invitacion', '').strip().upper()
         
         if not nombre or not correo or not password:
             flash('Todos los campos obligatorios son requeridos.', 'danger')
@@ -177,6 +222,12 @@ def register():
             flash('El correo ya está registrado.', 'danger')
             return redirect(url_for('register'))
             
+        patrocinador = None
+        if codigo_invitacion:
+            patrocinador = Usuario.query.filter_by(codigo_referido=codigo_invitacion).first()
+            if not patrocinador:
+                flash('El código de referido ingresado no es válido.', 'warning')
+
         hashed_password = generate_password_hash(password)
         nuevo_usuario = Usuario(
             nombre=nombre,
@@ -185,10 +236,21 @@ def register():
             password=hashed_password,
             rol='cliente',
             confirmado=False,
-            categoria='Cliente'
+            categoria='Cliente',
+            rango='Bronce',
+            referido_por_id=patrocinador.id if patrocinador else None
         )
         
         db.session.add(nuevo_usuario)
+        db.session.commit()
+        
+        # Generar código de referido único basado en su ID nuevo
+        nuevo_usuario.codigo_referido = f"WIND-{nuevo_usuario.id}-{os.urandom(2).hex().upper()}"
+        
+        if patrocinador:
+            nuevo_registro = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=nuevo_usuario.id)
+            db.session.add(nuevo_registro)
+            
         db.session.commit()
         
         flash('Registro exitoso. Un administrador debe aprobar tu cuenta antes de iniciar sesión.', 'success')
@@ -226,16 +288,16 @@ def admin_panel():
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
+    registros_referidos = RegistroReferido.query.all()
     
-    # Determinar quién está en línea (actividad en los últimos 3 minutos)
-    limite_online = datetime.utcnow() - timedelta(minutes=3)
+    limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
     for u in usuarios_confirmados:
         u.en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
     
-    hoy_str = datetime.now().strftime('%d/%m/%Y')
+    hoy_str = hora_lima().strftime('%d/%m/%Y')
     historial_envios = Pedido.query.filter_by(estado='Completado').order_by(Pedido.id.desc()).all()
     
     pedidos_hoy = [p for p in historial_envios if getattr(p, 'solo_fecha', hoy_str) == hoy_str]
@@ -254,12 +316,14 @@ def admin_panel():
         confirmados=usuarios_confirmados,
         solicitudes_reset=solicitudes_reset,
         codigos_promo=codigos_promo,
+        registros_referidos=registros_referidos,
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
         pedidos_hoy=pedidos_hoy,
         historicos_agrupados=historicos_agrupados,
-        seccion=seccion_admin
+        seccion=seccion_admin,
+        Usuario=Usuario
     )
 
 @app.route('/admin/crear_codigo', methods=['POST'])
@@ -278,7 +342,9 @@ def crear_codigo():
         max_usos_primeras = int(request.form.get('max_usos_primeras', 0))
     except ValueError:
         max_usos_primeras = 0
-        
+
+    es_premio = True if request.form.get('es_premio_referido') == 'on' else False
+    
     if codigo and descuento > 0:
         if not CodigoPromo.query.filter_by(codigo=codigo).first():
             nuevo_cp = CodigoPromo(
@@ -286,11 +352,12 @@ def crear_codigo():
                 descuento_porcentaje=descuento,
                 tipo_limite=tipo_limite,
                 max_usos_primeras=max_usos_primeras,
-                usos_actuales=0
+                usos_actuales=0,
+                es_premio_referido=es_premio
             )
             db.session.add(nuevo_cp)
             db.session.commit()
-            flash(f'Código promocional {codigo} creado con {descuento}% de descuento.', 'success')
+            flash(f'Código promocional {codigo} creado con éxito.', 'success')
         else:
             flash('El código ya existe.', 'danger')
     else:
@@ -396,9 +463,21 @@ def completar_recarga(id):
         
     pedido = Pedido.query.get_or_404(id)
     pedido.estado = 'Completado'
-    pedido.solo_fecha = datetime.now().strftime('%d/%m/%Y')
-    pedido.fecha = datetime.now().strftime('%d/%m/%Y %H:%M')
+    h_lima = hora_lima()
+    pedido.solo_fecha = h_lima.strftime('%d/%m/%Y')
+    pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
+
+    # Verificar si el pedido cumple con la regla de referidos: Pase equivalente a 1456 fragmentos
+    # (Asumimos que el pase o items comprados suman o equivalen a la regla o contiene pases)
+    if "Pases" in pedido.detalle:
+        cliente_pedido = Usuario.query.get(pedido.usuario_id)
+        if cliente_pedido and cliente_pedido.referido_por_id:
+            reg_ref = RegistroReferido.query.filter_by(patrocinador_id=cliente_pedido.referido_por_id, referido_id=cliente_pedido.id).first()
+            if reg_ref and not reg_ref.meta_cumplida:
+                reg_ref.meta_cumplida = True
+                db.session.commit()
+
     flash(f'Recarga completada para el pedido #{pedido.id}. Movido al historial.', 'success')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
 
@@ -418,7 +497,7 @@ def vaciar_historial_hoy():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
         return redirect(url_for('login'))
         
-    hoy_str = datetime.now().strftime('%d/%m/%Y')
+    hoy_str = hora_lima().strftime('%d/%m/%Y')
     pedidos_hoy = Pedido.query.filter_by(estado='Completado', solo_fecha=hoy_str).all()
     
     for p in pedidos_hoy:
@@ -456,8 +535,43 @@ def cliente_home():
         session['codigo_aplicado'] = None
         session['descuento_porcentaje'] = 0.0
         
-    seccion = request.args.get('seccion', 'catalogo')
+    seccion = request.args.get('seccion', 'perfil')
     
+    usuario_actual = db.session.get(Usuario, session['usuario_id'])
+
+    # Calcular estadísticas totales del usuario para su perfil
+    pedidos_completados = Pedido.query.filter_by(usuario_id=usuario_actual.id, estado='Completado').all()
+    total_pases = 0
+    total_fragmentos = 0
+    total_cajas = 0
+    
+    for p in pedidos_completados:
+        # Analizar detalle de pases, fragmentos, cajas
+        if "Pases" in p.detalle:
+            # Extraer cantidad numérica o sumar
+            total_pases += 1 # O parsear x cantidad
+        if "Fragmentos" in p.detalle:
+            total_fragmentos += 1456 # Ejemplo o conteo según cantidad
+        if "Cajas" in p.detalle:
+            total_cajas += 1
+
+    # Calcular puntaje/equivalente en fragmentos para los rangos (Bronce a Plata = 5000 fragmentos)
+    # Supongamos que 1 pase = 1456 fragmentos o cantidad exacta sumada de fragmentos comprados
+    puntos_fragmentos = (total_pases * 1456) + total_fragmentos
+    
+    # Lógica de rangos y barra de progreso
+    meta_rango = 5000
+    if puntos_fragmentos >= meta_rango:
+        usuario_actual.rango = 'Plata'
+        progreso_porcentaje = 100
+    else:
+        usuario_actual.rango = 'Bronce'
+        progreso_porcentaje = int((puntos_fragmentos / meta_rango) * 100)
+    db.session.commit()
+
+    # Obtener lista de referidos hechos por este usuario
+    mis_referidos = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).all()
+
     buscar_id = request.args.get('buscar_id', '').strip()
     resultados_seguimiento = []
     if buscar_id:
@@ -489,6 +603,15 @@ def cliente_home():
     return render_template(
         'cliente_home.html', 
         nombre=session.get('nombre'), 
+        usuario=usuario_actual,
+        total_pases=total_pases,
+        total_fragmentos=total_fragmentos,
+        total_cajas=total_cajas,
+        progreso_porcentaje=progreso_porcentaje,
+        puntos_fragmentos=puntos_fragmentos,
+        meta_rango=meta_rango,
+        mis_referidos=mis_referidos,
+        Usuario=Usuario,
         carrito=carrito_calculado, 
         total_general=round(total_general, 2),
         descuento_monto=round(descuento_monto, 2),
@@ -529,7 +652,7 @@ def agregar_carrito():
         
     session.modified = True
     flash(f'Se agregaron {cantidad} de {producto} al carrito.', 'success')
-    return redirect(url_for('cliente_home'))
+    return redirect(url_for('cliente_home', seccion='catalogo'))
 
 @app.route('/cliente/aplicar_codigo', methods=['POST'])
 def aplicar_codigo():
@@ -541,29 +664,27 @@ def aplicar_codigo():
     
     if not cp:
         flash('Código promocional inválido o inexistente.', 'danger')
-        return redirect(url_for('cliente_home'))
+        return redirect(url_for('cliente_home', seccion='catalogo'))
         
     usuario_id = session['usuario_id']
     
-    # Validar restricción: Una vez por cuenta
     if cp.tipo_limite == 'una_por_cuenta':
         ya_usado = UsoCodigoUsuario.query.filter_by(usuario_id=usuario_id, codigo_id=cp.id).first()
         if ya_usado:
             flash('Este código ya fue utilizado en tu cuenta. Solo se permite una vez por usuario.', 'danger')
-            return redirect(url_for('cliente_home'))
+            return redirect(url_for('cliente_home', seccion='catalogo'))
             
-    # Validar restricción: Primeras N cuentas
     elif cp.tipo_limite == 'primeras_cuentas':
         if cp.usos_actuales >= cp.max_usos_primeras:
             flash(f'Este código ya alcanzó su límite máximo de uso ({cp.max_usos_primeras} cuentas).', 'danger')
-            return redirect(url_for('cliente_home'))
+            return redirect(url_for('cliente_home', seccion='catalogo'))
 
     session['codigo_aplicado'] = cp.codigo
     session['descuento_porcentaje'] = cp.descuento_porcentaje
     flash(f'¡Código promocional {cp.codigo} aplicado ({cp.descuento_porcentaje}% de descuento)!', 'success')
         
     session.modified = True
-    return redirect(url_for('cliente_home'))
+    return redirect(url_for('cliente_home', seccion='catalogo'))
 
 @app.route('/cliente/preparar_pago', methods=['POST'])
 def preparar_pago():
@@ -577,7 +698,7 @@ def preparar_pago():
     jugador_id = request.form.get('jugador_id', '').strip()
     if not jugador_id:
         flash('Debes ingresar el ID de cuenta del jugador.', 'danger')
-        return redirect(url_for('cliente_home'))
+        return redirect(url_for('cliente_home', seccion='catalogo'))
         
     session['jugador_id_temp'] = jugador_id
     session.modified = True
@@ -591,7 +712,7 @@ def pagar_yape():
         
     if not session.get('carrito') or not session.get('jugador_id_temp'):
         flash('Sesión de pago expirada o carrito vacío.', 'warning')
-        return redirect(url_for('cliente_home'))
+        return redirect(url_for('cliente_home', seccion='catalogo'))
         
     telefono_digitos = request.form.get('telefono_digitos', '').strip()
     codigo_operacion = request.form.get('codigo_operacion', '').strip()
@@ -614,6 +735,7 @@ def pagar_yape():
     total_final = max(0.0, total_general - descuento_monto)
         
     detalle_texto = ", ".join(detalle_items)
+    h_lima = hora_lima()
     
     codigo_usado_str = session.get('codigo_aplicado')
     if codigo_usado_str:
@@ -636,7 +758,8 @@ def pagar_yape():
         codigo_promo=session.get('codigo_aplicado', ''),
         descuento_aplicado=round(descuento_monto, 2),
         estado='Validación de pago',
-        solo_fecha=datetime.now().strftime('%d/%m/%Y')
+        solo_fecha=h_lima.strftime('%d/%m/%Y'),
+        fecha=h_lima.strftime('%d/%m/%Y %H:%M')
     )
     
     db.session.add(nuevo_pedido)
@@ -659,7 +782,7 @@ def vaciar_carrito():
     session.pop('descuento_porcentaje', None)
     session.modified = True
     flash('El carrito ha sido vaciado.', 'info')
-    return redirect(url_for('cliente_home'))
+    return redirect(url_for('cliente_home', seccion='catalogo'))
 
 @app.route('/logout')
 def logout():
