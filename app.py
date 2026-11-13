@@ -27,6 +27,13 @@ class Usuario(db.Model):
     rol = db.Column(db.String(20), default='cliente')
     confirmado = db.Column(db.Boolean, default=False)
     categoria = db.Column(db.String(20), default='Cliente')
+    solicitud_reset = db.Column(db.Boolean, default=False)
+
+# Modelo de Código Promocional
+class CodigoPromo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(50), unique=True, nullable=False)
+    descuento_porcentaje = db.Column(db.Float, nullable=False)
 
 # Modelo de Pedido
 class Pedido(db.Model):
@@ -38,6 +45,8 @@ class Pedido(db.Model):
     total = db.Column(db.Float, nullable=False)
     telefono_digitos = db.Column(db.String(10), nullable=False)
     codigo_operacion = db.Column(db.String(50), nullable=False)
+    codigo_promo = db.Column(db.String(50), nullable=True, default='')
+    descuento_aplicado = db.Column(db.Float, nullable=True, default=0.0)
     estado = db.Column(db.String(50), default='Validación de pago') 
     fecha = db.Column(db.String(30), default=lambda: datetime.now().strftime('%d/%m/%Y %H:%M'))
     solo_fecha = db.Column(db.String(20), default=lambda: datetime.now().strftime('%d/%m/%Y'))
@@ -45,17 +54,18 @@ class Pedido(db.Model):
 with app.app_context():
     db.create_all()
     
-    # Asegurar automáticamente que las columnas existan en la tabla usuario de PostgreSQL
     try:
         with db.engine.connect() as connection:
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS confirmado BOOLEAN DEFAULT FALSE;'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS categoria VARCHAR(20) DEFAULT \'Cliente\';'))
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS solicitud_reset BOOLEAN DEFAULT FALSE;'))
+            connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
+            connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
-    # 1. Administrador Principal: windnexx@gmail.com
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
@@ -69,7 +79,6 @@ with app.app_context():
         )
         db.session.add(nuevo_admin_1)
 
-    # 2. Segundo Administrador: croldan12345@gmail.com
     admin_2 = Usuario.query.filter_by(correo='croldan12345@gmail.com').first()
     if not admin_2:
         nuevo_admin_2 = Usuario(
@@ -85,14 +94,11 @@ with app.app_context():
         
     db.session.commit()
 
-# Precios unitarios
 PRECIOS = {
     'Fragmentos': 0.082,
     'Cajas': 0.45,
     'Pases': 3.00
 }
-
-# --- RUTAS DE NAVEGACIÓN ---
 
 @app.route('/')
 def index():
@@ -147,7 +153,7 @@ def register():
             telefono=telefono,
             password=hashed_password,
             rol='cliente',
-            confirmado=False,  # Queda en falso hasta que el admin lo apruebe
+            confirmado=False,
             categoria='Cliente'
         )
         
@@ -159,7 +165,23 @@ def register():
         
     return render_template('register.html')
 
-# Panel Administrador
+@app.route('/recuperar', methods=['GET', 'POST'])
+def recuperar_password():
+    if request.method == 'POST':
+        correo = request.form.get('correo', '').strip().lower()
+        telefono = request.form.get('telefono', '').strip()
+        
+        usuario = Usuario.query.filter_by(correo=correo, telefono=telefono).first()
+        if usuario:
+            usuario.solicitud_reset = True
+            db.session.commit()
+            flash('Solicitud enviada con éxito. Un administrador verificará tus datos y restablecerá tu contraseña.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('El correo y el número de teléfono no coinciden con ningún registro.', 'danger')
+            
+    return render_template('recuperar.html')
+
 @app.route('/admin')
 def admin_panel():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
@@ -168,8 +190,10 @@ def admin_panel():
         
     seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
     
-    usuarios_pendientes = Usuario.query.filter_by(confirmado=False).all()
+    usuarios_pendientes = Usuario.query.filter_by(confirmado=False, solicitud_reset=False).all()
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
+    solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
+    codigos_promo = CodigoPromo.query.all()
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
@@ -191,6 +215,8 @@ def admin_panel():
         'admin.html', 
         pendientes=usuarios_pendientes, 
         confirmados=usuarios_confirmados,
+        solicitudes_reset=solicitudes_reset,
+        codigos_promo=codigos_promo,
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
@@ -198,6 +224,38 @@ def admin_panel():
         historicos_agrupados=historicos_agrupados,
         seccion=seccion_admin
     )
+
+@app.route('/admin/crear_codigo', methods=['POST'])
+def crear_codigo():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    codigo = request.form.get('codigo', '').strip().upper()
+    try:
+        descuento = float(request.form.get('descuento', 0))
+    except ValueError:
+        descuento = 0
+        
+    if codigo and descuento > 0:
+        if not CodigoPromo.query.filter_by(codigo=codigo).first():
+            nuevo_cp = CodigoPromo(codigo=codigo, descuento_porcentaje=descuento)
+            db.session.add(nuevo_cp)
+            db.session.commit()
+            flash(f'Código promocional {codigo} creado con {descuento}% de descuento.', 'success')
+        else:
+            flash('El código ya existe.', 'danger')
+    else:
+        flash('Datos inválidos para el código promocional.', 'danger')
+    return redirect(url_for('admin_panel', seccion='historial_envios'))
+
+@app.route('/admin/eliminar_codigo/<int:id>')
+def eliminar_codigo(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    cp = CodigoPromo.query.get_or_404(id)
+    db.session.delete(cp)
+    db.session.commit()
+    flash('Código promocional eliminado.', 'info')
+    return redirect(url_for('admin_panel', seccion='historial_envios'))
 
 @app.route('/api/verificar-alertas')
 def verificar_alertas():
@@ -225,6 +283,34 @@ def confirmar_usuario(id):
     usuario.confirmado = True
     db.session.commit()
     flash(f'El usuario {usuario.nombre} ha sido confirmado exitosamente.', 'success')
+    return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
+
+@app.route('/admin/restablecer_password/<int:id>', methods=['POST'])
+def restablecer_password(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    nueva_pass = request.form.get('nueva_password', '').strip()
+    
+    if nueva_pass:
+        usuario.password = generate_password_hash(nueva_pass)
+        usuario.solicitud_reset = False
+        db.session.commit()
+        flash(f'Contraseña restablecida correctamente para {usuario.correo}.', 'success')
+    else:
+        flash('Debes ingresar una contraseña válida.', 'danger')
+        
+    return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
+
+@app.route('/admin/eliminar_solicitud_reset/<int:id>')
+def eliminar_solicitud_reset(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    usuario = Usuario.query.get_or_404(id)
+    usuario.solicitud_reset = False
+    db.session.commit()
+    flash('Solicitud de restablecimiento eliminada.', 'info')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/actualizar_categoria/<int:id>', methods=['POST'])
@@ -316,6 +402,9 @@ def cliente_home():
     
     if 'carrito' not in session:
         session['carrito'] = []
+    if 'codigo_aplicado' not in session:
+        session['codigo_aplicado'] = None
+        session['descuento_porcentaje'] = 0.0
         
     seccion = request.args.get('seccion', 'catalogo')
     
@@ -341,11 +430,20 @@ def cliente_home():
             'subtotal': round(subtotal, 2)
         })
         
+    descuento_monto = 0.0
+    if session.get('descuento_porcentaje', 0) > 0:
+        descuento_monto = total_general * (session['descuento_porcentaje'] / 100.0)
+        
+    total_final = max(0.0, total_general - descuento_monto)
+        
     return render_template(
         'cliente_home.html', 
         nombre=session.get('nombre'), 
         carrito=carrito_calculado, 
         total_general=round(total_general, 2),
+        descuento_monto=round(descuento_monto, 2),
+        total_final=round(total_final, 2),
+        codigo_aplicado=session.get('codigo_aplicado'),
         seccion=seccion,
         historial=historial_compras,
         resultados_seguimiento=resultados_seguimiento,
@@ -381,6 +479,24 @@ def agregar_carrito():
         
     session.modified = True
     flash(f'Se agregaron {cantidad} de {producto} al carrito.', 'success')
+    return redirect(url_for('cliente_home'))
+
+@app.route('/cliente/aplicar_codigo', methods=['POST'])
+def aplicar_codigo():
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return redirect(url_for('login'))
+    
+    codigo_ingresado = request.form.get('codigo_promo', '').strip().upper()
+    cp = CodigoPromo.query.filter_by(codigo=codigo_ingresado).first()
+    
+    if cp:
+        session['codigo_aplicado'] = cp.codigo
+        session['descuento_porcentaje'] = cp.descuento_porcentaje
+        flash(f'¡Código promocional {cp.codigo} aplicado ({cp.descuento_porcentaje}% de descuento)!', 'success')
+    else:
+        flash('Código promocional inválido o inexistente.', 'danger')
+        
+    session.modified = True
     return redirect(url_for('cliente_home'))
 
 @app.route('/cliente/preparar_pago', methods=['POST'])
@@ -427,6 +543,10 @@ def pagar_yape():
         total_general += sub
         detalle_items.append(f"{item['producto']} (x{item['cantidad']})")
         
+    descuento_porc = session.get('descuento_porcentaje', 0.0)
+    descuento_monto = total_general * (descuento_porc / 100.0) if descuento_porc > 0 else 0.0
+    total_final = max(0.0, total_general - descuento_monto)
+        
     detalle_texto = ", ".join(detalle_items)
     
     nuevo_pedido = Pedido(
@@ -434,9 +554,11 @@ def pagar_yape():
         nombre_cliente=session['nombre'],
         jugador_id=jugador_id,
         detalle=detalle_texto,
-        total=round(total_general, 2),
+        total=round(total_final, 2),
         telefono_digitos=telefono_digitos,
         codigo_operacion=codigo_operacion,
+        codigo_promo=session.get('codigo_aplicado', ''),
+        descuento_aplicado=round(descuento_monto, 2),
         estado='Validación de pago',
         solo_fecha=datetime.now().strftime('%d/%m/%Y')
     )
@@ -446,6 +568,8 @@ def pagar_yape():
     
     session['carrito'] = []
     session.pop('jugador_id_temp', None)
+    session.pop('codigo_aplicado', None)
+    session.pop('descuento_porcentaje', None)
     session.modified = True
     
     flash('¡Pago registrado! Su pedido se encuentra en "Validación de pago".', 'success')
@@ -455,6 +579,8 @@ def pagar_yape():
 def vaciar_carrito():
     session['carrito'] = []
     session.pop('jugador_id_temp', None)
+    session.pop('codigo_aplicado', None)
+    session.pop('descuento_porcentaje', None)
     session.modified = True
     flash('El carrito ha sido vaciado.', 'info')
     return redirect(url_for('cliente_home'))

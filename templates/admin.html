@@ -66,6 +66,7 @@
                                 <th>Cliente</th>
                                 <th>ID Jugador</th>
                                 <th>Total</th>
+                                <th>Descuento / Promo</th>
                                 <th>Últimos 3 dígitos</th>
                                 <th>Nro. Operación</th>
                                 <th class="text-end">Acciones</th>
@@ -78,6 +79,13 @@
                                 <td class="fw-bold">{{ p.nombre_cliente }}</td>
                                 <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
                                 <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                <td>
+                                    {% if p.codigo_promo %}
+                                        <span class="badge bg-info text-dark">{{ p.codigo_promo }} (-S/{{ p.descuento_aplicado }})</span>
+                                    {% else %}
+                                        <span class="text-muted">Ninguno</span>
+                                    {% endif %}
+                                </td>
                                 <td><span class="badge bg-secondary">{{ p.telefono_digitos }}</span></td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
@@ -89,7 +97,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">No hay pagos pendientes por validar.</td>
+                                <td colspan="8" class="text-center py-4 text-muted">No hay pagos pendientes por validar.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -192,6 +200,53 @@
                 </div>
             </div>
 
+            <!-- MÓDULO DE CÓDIGOS PROMOCIONALES DEBAJO DEL HISTORIAL -->
+            <div class="card shadow-sm border-info mb-4">
+                <div class="card-header bg-info text-white fw-bold">
+                    🎟️ Gestión de Códigos Promocionales
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Código:</label>
+                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold">Porcentaje de Descuento (%):</label>
+                            <input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Ej. 10" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button>
+                        </div>
+                    </form>
+
+                    <table class="table table-sm table-bordered align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descuento</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cp in codigos_promo %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ cp.codigo }}</td>
+                                <td>{{ cp.descuento_porcentaje }}%</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No hay códigos promocionales creados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             {% if historicos_agrupados %}
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-secondary text-white fw-bold">
@@ -239,7 +294,49 @@
             {% endif %}
 
         {% elif seccion == 'gestion_usuarios' %}
-            <!-- GESTIÓN DE USUARIOS -->
+            <!-- GESTIÓN DE USUARIOS - SOLICITUDES DE RESTABLECIMIENTO -->
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-header bg-warning text-dark fw-bold">
+                    🔑 Clientes - Restablecer Contraseña
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Correo</th>
+                                <th>Teléfono</th>
+                                <th>Nueva Contraseña</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in solicitudes_reset %}
+                            <tr>
+                                <td>{{ u.nombre }}</td>
+                                <td>{{ u.correo }}</td>
+                                <td>{{ u.telefono }}</td>
+                                <td>
+                                    <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="d-flex gap-1">
+                                        <input type="text" name="nueva_password" class="form-control form-control-sm" placeholder="Nueva clave" required>
+                                        <button type="submit" class="btn btn-sm btn-success fw-bold">Guardar</button>
+                                    </form>
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar esta solicitud?')">Eliminar</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted">No hay solicitudes de restablecimiento de contraseña.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- USUARIOS PENDIENTES DE REGISTRO -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white fw-bold">
                     Usuarios Pendientes de Confirmación (Registro)
