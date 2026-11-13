@@ -11,12 +11,6 @@
   🔊 Haz clic aquí para activar las alertas sonoras y notificaciones en tiempo real (Obligatorio por única vez)
 </div>
 
-<!-- INDICADOR VISUAL OCULTO PARA LIMPIAR LA PANTALLA -->
-<div id="estado-monitoreo" class="d-none">
-  <span id="punto-conexion"></span> 
-  <span id="texto-conexion"></span>
-</div>
-
 <!-- CONTENEDOR DE NOTIFICACIONES FLOTANTES -->
 <div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
 
@@ -38,7 +32,6 @@
                 <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action {% if seccion == 'historial_envios' %}active fw-bold{% endif %}">
                     📋 Historial de Envíos Realizados
                 </a>
-                <!-- CÓDIGOS PROMOCIONALES UBICADOS EXACTAMENTE ENTRE HISTORIAL Y GESTIÓN DE USUARIOS -->
                 <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action {% if seccion == 'codigos_promo' %}active fw-bold{% endif %}">
                     🎟️ Códigos Promocionales <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
                 </a>
@@ -56,7 +49,7 @@
     <div class="col-md-9">
 
         {% if seccion == 'pedidos_pendientes' %}
-            <!-- PEDIDOS PENDIENTES (Validación de Pago Yape) -->
+            <!-- PEDIDOS PENDIENTES -->
             <div class="card shadow-sm border-primary">
                 <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📦 Pedidos Pendientes (Validación de Pago Yape)</span>
@@ -110,10 +103,10 @@
             </div>
 
         {% elif seccion == 'pedidos_recargando' %}
-            <!-- ESTADO: RECARGANDO -->
+            <!-- RECARGANDO -->
             <div class="card shadow-sm border-warning">
                 <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                    <span>⚡ Pedidos en Proceso de Recarga (Haz clic en el ID para copiarlo)</span>
+                    <span>⚡ Pedidos en Proceso de Recarga</span>
                     <span class="badge bg-dark text-white">{{ pedidos_recargando|length }} recargando</span>
                 </div>
                 <div class="card-body p-0">
@@ -158,7 +151,7 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <!-- HISTORIAL DE ENVÍOS -->
+            <!-- HISTORIAL -->
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📋 Historial de Envíos Realizados (Ventas de Hoy)</span>
@@ -251,7 +244,7 @@
             {% endif %}
 
         {% elif seccion == 'codigos_promo' %}
-            <!-- MÓDULO EXCLUSIVO DE GESTIÓN DE CÓDIGOS PROMOCIONALES CON LÍMITES -->
+            <!-- CÓDIGOS PROMOCIONALES -->
             <div class="card shadow-sm border-info mb-4">
                 <div class="card-header bg-info text-white fw-bold">
                     🎟️ Gestión de Códigos Promocionales y Límites de Uso
@@ -341,7 +334,7 @@
             </script>
 
         {% elif seccion == 'gestion_usuarios' %}
-            <!-- GESTIÓN DE USUARIOS - SOLICITUDES DE RESTABLECIMIENTO -->
+            <!-- SOLICITUDES DE RESTABLECIMIENTO -->
             <div class="card shadow-sm mb-4 border-warning">
                 <div class="card-header bg-warning text-dark fw-bold">
                     🔑 Clientes - Restablecer Contraseña
@@ -383,7 +376,7 @@
                 </div>
             </div>
 
-            <!-- USUARIOS PENDIENTES DE REGISTRO -->
+            <!-- PENDIENTES DE REGISTRO -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-secondary text-white fw-bold">
                     Usuarios Pendientes de Confirmación (Registro)
@@ -421,6 +414,7 @@
                 </div>
             </div>
 
+            <!-- CLIENTES REGISTRADOS CON ESTADO EN TIEMPO REAL -->
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white fw-bold">
                     Clientes Registrados y Categorización
@@ -439,15 +433,15 @@
                         </thead>
                         <tbody>
                             {% for u in confirmados %}
-                            <tr>
+                            <tr id="fila-usuario-{{ u.id }}">
                                 <td>
                                     {% if u.en_linea %}
-                                        <span class="d-inline-flex align-items-center text-success fw-bold" title="En línea">
+                                        <span id="badge-estado-{{ u.id }}" class="d-inline-flex align-items-center text-success fw-bold" title="En línea">
                                             <span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span>
                                             En línea
                                         </span>
                                     {% else %}
-                                        <span class="d-inline-flex align-items-center text-muted" title="Desconectado">
+                                        <span id="badge-estado-{{ u.id }}" class="d-inline-flex align-items-center text-muted" title="Desconectado">
                                             <span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span>
                                             Desconectado
                                         </span>
@@ -483,7 +477,7 @@
     </div>
 </div>
 
-<!-- SCRIPT DE MONITOREO -->
+<!-- SCRIPT DE MONITOREO Y ACTUALIZACIÓN EN VIVO DE ESTADOS -->
 <script>
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 let totalPedidosConocido = 0;
@@ -542,6 +536,7 @@ function activarAudioSistema() {
 function verificarNovedadesAdmin() {
     if (!sistemaActivo) return;
 
+    // 1. Verificar nuevos pedidos o registros
     fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
         .then(response => response.json())
         .then(data => {
@@ -563,7 +558,6 @@ function verificarNovedadesAdmin() {
 
             if (hayNovedad) {
                 reproducirTimbreAlerta();
-
                 const contenedor = document.getElementById('contenedor-notificaciones');
                 if (contenedor) {
                     const alertaDiv = document.createElement('div');
@@ -574,16 +568,37 @@ function verificarNovedadesAdmin() {
                     `;
                     contenedor.appendChild(alertaDiv);
                 }
-
-                setTimeout(() => {
-                    location.reload();
-                }, 800);
+                setTimeout(() => { location.reload(); }, 800);
             }
         })
         .catch(err => {});
+
+    // 2. Actualizar estados En línea / Desconectado en tiempo real (si está en la sección de gestión de usuarios)
+    {% if seccion == 'gestion_usuarios' %}
+    fetch('/api/estado-usuarios?t=' + Date.now(), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(estados => {
+            for (const [id, enLinea] of Object.entries(estados)) {
+                const badge = document.getElementById(`badge-estado-${id}`);
+                if (badge) {
+                    if (enLinea) {
+                        badge.className = 'd-inline-flex align-items-center text-success fw-bold';
+                        badge.title = 'En línea';
+                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span> En línea`;
+                    } else {
+                        badge.className = 'd-inline-flex align-items-center text-muted';
+                        badge.title = 'Desconectado';
+                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span> Desconectado`;
+                    }
+                }
+            }
+        })
+        .catch(err => {});
+    {% endif %}
 }
 
-setInterval(verificarNovedadesAdmin, 1000);
+// Comprobación cada 3 segundos
+setInterval(verificarNovedadesAdmin, 3000);
 
 function copiarTexto(texto, elemento) {
     navigator.clipboard.writeText(texto).then(function() {
