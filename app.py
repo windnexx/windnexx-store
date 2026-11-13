@@ -2,7 +2,7 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import text
 
 app = Flask(__name__)
@@ -28,12 +28,22 @@ class Usuario(db.Model):
     confirmado = db.Column(db.Boolean, default=False)
     categoria = db.Column(db.String(20), default='Cliente')
     solicitud_reset = db.Column(db.Boolean, default=False)
+    ultima_actividad = db.Column(db.DateTime, nullable=True)
 
-# Modelo de Código Promocional
+# Modelo de Código Promocional Actualizado
 class CodigoPromo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
     descuento_porcentaje = db.Column(db.Float, nullable=False)
+    tipo_limite = db.Column(db.String(20), default='ilimitado') # 'ilimitado', 'una_por_cuenta', 'primeras_cuentas'
+    max_usos_primeras = db.Column(db.Integer, default=0) 
+    usos_actuales = db.Column(db.Integer, default=0)
+
+# Tabla auxiliar para llevar el control de qué usuario ya usó qué código ("una vez por cuenta")
+class UsoCodigoUsuario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
+    codigo_id = db.Column(db.Integer, db.ForeignKey('codigo_promo.id'), nullable=False)
 
 # Modelo de Pedido
 class Pedido(db.Model):
@@ -60,8 +70,12 @@ with app.app_context():
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS confirmado BOOLEAN DEFAULT FALSE;'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS categoria VARCHAR(20) DEFAULT \'Cliente\';'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS solicitud_reset BOOLEAN DEFAULT FALSE;'))
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS ultima_actividad TIMESTAMP;'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_limite VARCHAR(20) DEFAULT \'ilimitado\';'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS max_usos_primeras INTEGER DEFAULT 0;'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS usos_actuales INTEGER DEFAULT 0;'))
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
@@ -94,6 +108,20 @@ with app.app_context():
         
     db.session.commit()
 
+# Actualiza la marca de tiempo del usuario activo en cada interacción
+@app.before_request
+def actualizar_actividad_usuario():
+    if 'usuario_id' in session and request.endpoint != 'static':
+        usuario = db.session.get(Usuario, session['usuario_id'])
+        if usuario:
+            usuario.ultima_actividad = datetime.utcnow()
+            db.session.commit()
+
+# Ruta silenciosa para mantener el estado "En línea" mientras el cliente tiene la web abierta
+@app.route('/api/ping')
+def ping_actividad():
+    return jsonify({"status": "ok"})
+
 PRECIOS = {
     'Fragmentos': 0.082,
     'Cajas': 0.45,
@@ -120,6 +148,9 @@ def login():
             session['usuario_id'] = usuario.id
             session['nombre'] = usuario.nombre
             session['rol'] = usuario.rol
+            
+            usuario.ultima_actividad = datetime.utcnow()
+            db.session.commit()
             
             if usuario.rol == 'admin':
                 return redirect(url_for('admin_panel'))
@@ -175,10 +206,11 @@ def recuperar_password():
         if usuario:
             usuario.solicitud_reset = True
             db.session.commit()
-            flash('Solicitud enviada con éxito. Un administrador verificará tus datos y restablecerá tu contraseña.', 'success')
+            flash('Solicitud enviada con éxito. El administrador revisará tus datos para restablecer tu contraseña.', 'success')
             return redirect(url_for('login'))
         else:
             flash('El correo y el número de teléfono no coinciden con ningún registro.', 'danger')
+            return redirect(url_for('recuperar_password'))
             
     return render_template('recuperar.html')
 
@@ -194,6 +226,11 @@ def admin_panel():
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
+    
+    # Determinar quién está en línea (actividad en los últimos 3 minutos)
+    limite_online = datetime.utcnow() - timedelta(minutes=3)
+    for u in usuarios_confirmados:
+        u.en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
@@ -229,15 +266,28 @@ def admin_panel():
 def crear_codigo():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
         return redirect(url_for('login'))
+    
     codigo = request.form.get('codigo', '').strip().upper()
     try:
         descuento = float(request.form.get('descuento', 0))
     except ValueError:
         descuento = 0
         
+    tipo_limite = request.form.get('tipo_limite', 'ilimitado')
+    try:
+        max_usos_primeras = int(request.form.get('max_usos_primeras', 0))
+    except ValueError:
+        max_usos_primeras = 0
+        
     if codigo and descuento > 0:
         if not CodigoPromo.query.filter_by(codigo=codigo).first():
-            nuevo_cp = CodigoPromo(codigo=codigo, descuento_porcentaje=descuento)
+            nuevo_cp = CodigoPromo(
+                codigo=codigo, 
+                descuento_porcentaje=descuento,
+                tipo_limite=tipo_limite,
+                max_usos_primeras=max_usos_primeras,
+                usos_actuales=0
+            )
             db.session.add(nuevo_cp)
             db.session.commit()
             flash(f'Código promocional {codigo} creado con {descuento}% de descuento.', 'success')
@@ -489,12 +539,28 @@ def aplicar_codigo():
     codigo_ingresado = request.form.get('codigo_promo', '').strip().upper()
     cp = CodigoPromo.query.filter_by(codigo=codigo_ingresado).first()
     
-    if cp:
-        session['codigo_aplicado'] = cp.codigo
-        session['descuento_porcentaje'] = cp.descuento_porcentaje
-        flash(f'¡Código promocional {cp.codigo} aplicado ({cp.descuento_porcentaje}% de descuento)!', 'success')
-    else:
+    if not cp:
         flash('Código promocional inválido o inexistente.', 'danger')
+        return redirect(url_for('cliente_home'))
+        
+    usuario_id = session['usuario_id']
+    
+    # Validar restricción: Una vez por cuenta
+    if cp.tipo_limite == 'una_por_cuenta':
+        ya_usado = UsoCodigoUsuario.query.filter_by(usuario_id=usuario_id, codigo_id=cp.id).first()
+        if ya_usado:
+            flash('Este código ya fue utilizado en tu cuenta. Solo se permite una vez por usuario.', 'danger')
+            return redirect(url_for('cliente_home'))
+            
+    # Validar restricción: Primeras N cuentas
+    elif cp.tipo_limite == 'primeras_cuentas':
+        if cp.usos_actuales >= cp.max_usos_primeras:
+            flash(f'Este código ya alcanzó su límite máximo de uso ({cp.max_usos_primeras} cuentas).', 'danger')
+            return redirect(url_for('cliente_home'))
+
+    session['codigo_aplicado'] = cp.codigo
+    session['descuento_porcentaje'] = cp.descuento_porcentaje
+    flash(f'¡Código promocional {cp.codigo} aplicado ({cp.descuento_porcentaje}% de descuento)!', 'success')
         
     session.modified = True
     return redirect(url_for('cliente_home'))
@@ -549,6 +615,16 @@ def pagar_yape():
         
     detalle_texto = ", ".join(detalle_items)
     
+    codigo_usado_str = session.get('codigo_aplicado')
+    if codigo_usado_str:
+        cp_obj = CodigoPromo.query.filter_by(codigo=codigo_usado_str).first()
+        if cp_obj:
+            cp_obj.usos_actuales += 1
+            if cp_obj.tipo_limite == 'una_por_cuenta':
+                nuevo_uso = UsoCodigoUsuario(usuario_id=session['usuario_id'], codigo_id=cp_obj.id)
+                db.session.add(nuevo_uso)
+            db.session.commit()
+
     nuevo_pedido = Pedido(
         usuario_id=session['usuario_id'],
         nombre_cliente=session['nombre'],
@@ -587,6 +663,11 @@ def vaciar_carrito():
 
 @app.route('/logout')
 def logout():
+    if 'usuario_id' in session:
+        usuario = db.session.get(Usuario, session['usuario_id'])
+        if usuario:
+            usuario.ultima_actividad = None
+            db.session.commit()
     session.clear()
     flash('Has cerrado sesión correctamente.', 'info')
     return redirect(url_for('login'))

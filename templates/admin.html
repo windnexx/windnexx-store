@@ -251,32 +251,46 @@
             {% endif %}
 
         {% elif seccion == 'codigos_promo' %}
-            <!-- MÓDULO EXCLUSIVO DE GESTIÓN DE CÓDIGOS PROMOCIONALES -->
+            <!-- MÓDULO EXCLUSIVO DE GESTIÓN DE CÓDIGOS PROMOCIONALES CON LÍMITES -->
             <div class="card shadow-sm border-info mb-4">
                 <div class="card-header bg-info text-white fw-bold">
-                    🎟️ Gestión de Códigos Promocionales
+                    🎟️ Gestión de Códigos Promocionales y Límites de Uso
                 </div>
                 <div class="card-body">
-                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-2 mb-4 align-items-end">
-                        <div class="col-md-5">
+                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-3 mb-4 align-items-end">
+                        <div class="col-md-3">
                             <label class="form-label small fw-bold">Código:</label>
                             <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
                         </div>
-                        <div class="col-md-5">
-                            <label class="form-label small fw-bold">Porcentaje de Descuento (%):</label>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Descuento (%):</label>
                             <input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Ej. 10" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">Tipo de Límite:</label>
+                            <select name="tipo_limite" id="tipo_limite" class="form-select form-select-sm" onchange="toggleMaxUsos(this)">
+                                <option value="ilimitado">Ilimitado</option>
+                                <option value="una_por_cuenta">Una vez por cuenta</option>
+                                <option value="primeras_cuentas">Primeras N cuentas</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2" id="div_max_usos" style="display: none;">
+                            <label class="form-label small fw-bold">Cant. Cuentas:</label>
+                            <input type="number" name="max_usos_primeras" class="form-control form-control-sm" value="0" placeholder="Ej. 10">
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button>
                         </div>
                     </form>
 
-                    <h6 class="fw-bold text-dark mb-2">Códigos Activos en el Sistema</h6>
+                    <h6 class="fw-bold text-dark mb-2">Códigos Activos y Estadísticas de Uso</h6>
                     <table class="table table-sm table-bordered align-middle small mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>Código</th>
                                 <th>Descuento</th>
+                                <th>Regla de Uso</th>
+                                <th>Usos Totales / Límite</th>
                                 <th class="text-end">Acción</th>
                             </tr>
                         </thead>
@@ -285,19 +299,46 @@
                             <tr>
                                 <td class="fw-bold text-primary">{{ cp.codigo }}</td>
                                 <td>{{ cp.descuento_porcentaje }}%</td>
+                                <td>
+                                    {% if cp.tipo_limite == 'una_por_cuenta' %}
+                                        <span class="badge bg-secondary">Una vez por cuenta</span>
+                                    {% elif cp.tipo_limite == 'primeras_cuentas' %}
+                                        <span class="badge bg-warning text-dark">Primeras {{ cp.max_usos_primeras }} cuentas</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Ilimitado</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cp.tipo_limite == 'primeras_cuentas' %}
+                                        {{ cp.usos_actuales }} / {{ cp.max_usos_primeras }}
+                                    {% else %}
+                                        {{ cp.usos_actuales }} usos
+                                    {% endif %}
+                                </td>
                                 <td class="text-end">
                                     <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-3">No hay códigos promocionales creados.</td>
+                                <td colspan="5" class="text-center text-muted py-3">No hay códigos promocionales creados.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <script>
+            function toggleMaxUsos(select) {
+                const div = document.getElementById('div_max_usos');
+                if (select.value === 'primeras_cuentas') {
+                    div.style.display = 'block';
+                } else {
+                    div.style.display = 'none';
+                }
+            }
+            </script>
 
         {% elif seccion == 'gestion_usuarios' %}
             <!-- GESTIÓN DE USUARIOS - SOLICITUDES DE RESTABLECIMIENTO -->
@@ -388,6 +429,7 @@
                     <table class="table table-striped align-middle mb-0 small">
                         <thead class="table-light">
                             <tr>
+                                <th>Estado</th>
                                 <th>Nombre</th>
                                 <th>Correo</th>
                                 <th>Teléfono</th>
@@ -398,7 +440,20 @@
                         <tbody>
                             {% for u in confirmados %}
                             <tr>
-                                <td>{{ u.nombre }}</td>
+                                <td>
+                                    {% if u.en_linea %}
+                                        <span class="d-inline-flex align-items-center text-success fw-bold" title="En línea">
+                                            <span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span>
+                                            En línea
+                                        </span>
+                                    {% else %}
+                                        <span class="d-inline-flex align-items-center text-muted" title="Desconectado">
+                                            <span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span>
+                                            Desconectado
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold">{{ u.nombre }}</td>
                                 <td>{{ u.correo }}</td>
                                 <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                 <td>
@@ -416,7 +471,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center py-3 text-muted">No hay clientes confirmados.</td>
+                                <td colspan="6" class="text-center py-3 text-muted">No hay clientes confirmados.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -428,7 +483,7 @@
     </div>
 </div>
 
-<!-- SCRIPT DE MONITOREO MEJORADO (Actualización cada 1 segundo y audio garantizado) -->
+<!-- SCRIPT DE MONITOREO -->
 <script>
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
 let totalPedidosConocido = 0;
@@ -528,7 +583,6 @@ function verificarNovedadesAdmin() {
         .catch(err => {});
 }
 
-// Intervalo reducido a 1000ms (1 segundo) para notificaciones ultrarrápidas
 setInterval(verificarNovedadesAdmin, 1000);
 
 function copiarTexto(texto, elemento) {
