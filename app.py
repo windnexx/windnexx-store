@@ -174,7 +174,6 @@ def calcular_estadisticas_usuario(usuario_id):
     monto_total_comprado = 0.0
 
     for p in pedidos_completados:
-        # Extraer cantidades exactas usando expresiones regulares del texto (ej. "Fragmentos (x1456)")
         m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
         if m_frag:
             total_fragmentos += int(m_frag.group(1))
@@ -187,10 +186,8 @@ def calcular_estadisticas_usuario(usuario_id):
         if m_pases:
             total_pases += int(m_pases.group(1))
 
-        # Sumar valor original antes de descuentos (total + descuento_aplicado)
         monto_total_comprado += (p.total + (p.descuento_aplicado or 0.0))
 
-    # Convertir todo el valor comprado a su equivalente en Fragmentos (1 Fragmento = S/ 0.082)
     fragmentos_equivalentes = int(round(monto_total_comprado / PRECIOS['Fragmentos']))
     return total_pases, total_fragmentos, total_cajas, fragmentos_equivalentes
 
@@ -489,7 +486,6 @@ def completar_recarga(id):
     pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
 
-    # VALIDACIÓN EXACTA POR VALOR EQUIVALENTE A 1456 FRAGMENTOS (Fragmentos, Cajas o Pases)
     cliente_pedido = Usuario.query.get(pedido.usuario_id)
     if cliente_pedido and cliente_pedido.referido_por_id:
         _, _, _, frag_equiv_total = calcular_estadisticas_usuario(cliente_pedido.id)
@@ -538,9 +534,28 @@ def eliminar_usuario(id):
         flash('No puedes eliminar cuentas de administrador.', 'danger')
         return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
         
-    db.session.delete(usuario)
-    db.session.commit()
-    flash(f'El usuario {usuario.nombre} ha sido eliminado.', 'info')
+    try:
+        # 1. Eliminar pedidos asociados al usuario
+        Pedido.query.filter_by(usuario_id=usuario.id).delete()
+        
+        # 2. Eliminar registros de referidos donde sea patrocinador o referido
+        RegistroReferido.query.filter((RegistroReferido.patrocinador_id == usuario.id) | (RegistroReferido.referido_id == usuario.id)).delete()
+        
+        # 3. Eliminar usos de códigos promocionales del usuario
+        UsoCodigoUsuario.query.filter_by(usuario_id=usuario.id).delete()
+        
+        # 4. Desvincular a otros usuarios que tuvieran a este como referido_por_id
+        Usuario.query.filter_by(referido_por_id=usuario.id).update({Usuario.referido_por_id: None})
+
+        # 5. Finalmente, eliminar al usuario
+        db.session.delete(usuario)
+        db.session.commit()
+        
+        flash(f'El usuario {usuario.nombre} y todos sus datos asociados han sido eliminados.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar el usuario: {str(e)}', 'danger')
+
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/cliente/home')
@@ -568,7 +583,6 @@ def cliente_home():
             db.session.add(nuevo_reg)
             db.session.commit()
             
-            # Revisar si este usuario ya había comprado >= 1456 fragmentos equivalentes antes de vincularse
             _, _, _, frag_equiv_actual = calcular_estadisticas_usuario(usuario_actual.id)
             if frag_equiv_actual >= 1456:
                 nuevo_reg.meta_cumplida = True
@@ -592,7 +606,6 @@ def cliente_home():
 
     mis_referidos = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).all()
     
-    # Verificar retrospectivamente si algún referido ya cumplió la meta de 1456 fragmentos equivalentes
     for ref in mis_referidos:
         if not ref.meta_cumplida:
             _, _, _, f_eq = calcular_estadisticas_usuario(ref.referido_id)
