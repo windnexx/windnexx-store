@@ -49,6 +49,7 @@ class CodigoPromo(db.Model):
     max_usos_primeras = db.Column(db.Integer, default=0) 
     usos_actuales = db.Column(db.Integer, default=0)
     es_premio_referido = db.Column(db.Boolean, default=False)
+    propietario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
 
 # Tabla auxiliar para control de códigos
 class UsoCodigoUsuario(db.Model):
@@ -99,11 +100,11 @@ with app.app_context():
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS max_usos_primeras INTEGER DEFAULT 0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS usos_actuales INTEGER DEFAULT 0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS es_premio_referido BOOLEAN DEFAULT FALSE;'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS propietario_id INTEGER;'))
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
-    # Asignar código de referido automático a usuarios antiguos si no lo tienen
     for u in Usuario.query.filter_by(codigo_referido=None).all():
         u.codigo_referido = f"WIND-{u.id}-{os.urandom(2).hex().upper()}"
     db.session.commit()
@@ -172,7 +173,6 @@ PRECIOS = {
 }
 
 def calcular_estadisticas_usuario(usuario_id):
-    """Calcula cantidades exactas compradas y fragmentos equivalentes."""
     pedidos_completados = Pedido.query.filter_by(usuario_id=usuario_id, estado='Completado').all()
     total_pases = 0
     total_fragmentos = 0
@@ -492,7 +492,6 @@ def completar_recarga(id):
     pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
 
-    # Validar si el cliente cumple la meta de referidos (equivalente a 1456 fragmentos)
     cliente_pedido = Usuario.query.get(pedido.usuario_id)
     if cliente_pedido and cliente_pedido.referido_por_id:
         _, _, _, frag_equiv_total = calcular_estadisticas_usuario(cliente_pedido.id)
@@ -501,6 +500,22 @@ def completar_recarga(id):
             if reg_ref and not reg_ref.meta_cumplida:
                 reg_ref.meta_cumplida = True
                 db.session.commit()
+
+                # Crear cupón exclusivo y personal para el patrocinador que ganó la recompensa
+                patrocinador = Usuario.query.get(cliente_pedido.referido_por_id)
+                if patrocinador:
+                    codigo_personal = f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}"
+                    existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
+                    if not existe_cupon:
+                        nuevo_cupon_ref = CodigoPromo(
+                            codigo=codigo_personal,
+                            descuento_porcentaje=10.0,
+                            tipo_limite='una_por_cuenta',
+                            es_premio_referido=True,
+                            propietario_id=patrocinador.id
+                        )
+                        db.session.add(nuevo_cupon_ref)
+                        db.session.commit()
 
     flash(f'Recarga completada para el pedido #{pedido.id}. Movido al historial.', 'success')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
@@ -545,6 +560,7 @@ def eliminar_usuario(id):
         Pedido.query.filter_by(usuario_id=usuario.id).delete()
         RegistroReferido.query.filter((RegistroReferido.patrocinador_id == usuario.id) | (RegistroReferido.referido_id == usuario.id)).delete()
         UsoCodigoUsuario.query.filter_by(usuario_id=usuario.id).delete()
+        CodigoPromo.query.filter_by(propietario_id=usuario.id).delete()
         Usuario.query.filter_by(referido_por_id=usuario.id).update({Usuario.referido_por_id: None})
 
         db.session.delete(usuario)
@@ -611,10 +627,19 @@ def cliente_home():
             _, _, _, f_eq = calcular_estadisticas_usuario(ref.referido_id)
             if f_eq >= 1456:
                 ref.meta_cumplida = True
+                patrocinador = Usuario.query.get(ref.patrocinador_id)
+                if patrocinador:
+                    existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
+                    if not existe_cupon:
+                        nuevo_cupon_ref = CodigoPromo(
+                            codigo=f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}",
+                            descuento_porcentaje=10.0,
+                            tipo_limite='una_por_cuenta',
+                            es_premio_referido=True,
+                            propietario_id=patrocinador.id
+                        )
+                        db.session.add(nuevo_cupon_ref)
     db.session.commit()
-
-    premio_referido_obj = CodigoPromo.query.filter_by(es_premio_referido=True).first()
-    codigo_premio_activo = premio_referido_obj.codigo if premio_referido_obj else None
 
     buscar_id = request.args.get('buscar_id', '').strip()
     resultados_seguimiento = []
@@ -655,8 +680,8 @@ def cliente_home():
         puntos_fragmentos=puntos_fragmentos,
         meta_rango=meta_rango,
         mis_referidos=mis_referidos,
-        codigo_premio_activo=codigo_premio_activo,
         Usuario=Usuario,
+        CodigoPromo=CodigoPromo,
         carrito=carrito_calculado, 
         total_general=round(total_general, 2),
         descuento_monto=round(descuento_monto, 2),
@@ -712,6 +737,11 @@ def aplicar_codigo():
         return redirect(url_for('cliente_home', seccion='catalogo'))
         
     usuario_id = session['usuario_id']
+    
+    # Validar exclusividad del cupón de referido
+    if cp.es_premio_referido and cp.propietario_id != usuario_id:
+        flash('Cupón inválido: este código de recompensa no te pertenece o aún no has completado la misión.', 'danger')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
     
     if cp.tipo_limite == 'una_por_cuenta':
         ya_usado = UsoCodigoUsuario.query.filter_by(usuario_id=usuario_id, codigo_id=cp.id).first()

@@ -33,14 +33,11 @@
     <div class="col-md-9">
 
         {% if seccion == 'perfil' %}
-            <!-- VISTA: MI PERFIL (LIMPIO SIN LISTA DE REFERIDOS) -->
             <div class="card shadow-sm border-dark">
                 <div class="card-header bg-dark text-white fw-bold text-uppercase">
                     👤 Información de Mi Perfil
                 </div>
                 <div class="card-body">
-                    
-                    <!-- RANGO Y BARRA DE PROGRESO ARRIBA EN EL CENTRO -->
                     <div class="text-center mb-4 p-3 bg-light rounded border">
                         <h5 class="fw-bold text-secondary mb-2">Rango Actual</h5>
                         
@@ -64,7 +61,6 @@
                         </div>
                     </div>
 
-                    <!-- DATOS PERSONALES Y ESTADÍSTICAS TOTALES -->
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="p-3 bg-light rounded border h-100">
@@ -89,7 +85,6 @@
             </div>
 
         {% elif seccion == 'amigo_referidos' %}
-            <!-- VISTA: AMIGO REFERIDOS (CON SU HISTORIAL Y CUPÓN GANADO) -->
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold">
                     🤝 Sistema de Amigo Referido
@@ -97,7 +92,7 @@
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h6 class="fw-bold">¿Cómo funciona?</h6>
-                        <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren el valor equivalente a <strong>1456 fragmentos</strong> (en fragmentos, cajas o pases), ¡recibirás tu cupón de recompensa automáticamente!</p>
+                        <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren el valor equivalente a <strong>1456 fragmentos</strong> (en fragmentos, cajas o pases), ¡recibirás tu cupón de recompensa exclusivo automáticamente!</p>
                     </div>
 
                     <div class="mb-4 p-3 bg-light rounded border text-center">
@@ -123,7 +118,6 @@
                         </div>
                     {% endif %}
 
-                    <!-- LISTA DE MIS AMIGOS REFERIDOS Y CUPÓN GANADO -->
                     <h6 class="fw-bold text-dark mb-3">📋 Historial de Mis Amigos Referidos</h6>
                     {% if mis_referidos %}
                         <div class="table-responsive mb-3">
@@ -161,13 +155,14 @@
 
                         {% if metacomplida.valor %}
                             <div class="alert alert-success text-center shadow-sm">
-                                <h6 class="fw-bold mb-1">🎉 ¡Felicitaciones! Tienes referidos que completaron la meta.</h6>
-                                {% if codigo_premio_activo %}
-                                    <p class="small mb-1">Tu código de cupón de recompensa es:</p>
-                                    <span class="badge bg-dark fs-5 px-3 py-2">{{ codigo_premio_activo }}</span>
-                                    <div class="form-text text-dark small mt-1">Aplica este código en tu carrito de compras para obtener tu descuento.</div>
+                                <h6 class="fw-bold mb-1">🎉 ¡Felicitaciones! Cumpliste la meta con tus referidos.</h6>
+                                {% set mi_cupon_exclusivo = CodigoPromo.query.filter_by(propietario_id=usuario.id, es_premio_referido=True).first() %}
+                                {% if mi_cupon_exclusivo %}
+                                    <p class="small mb-1">Tu código de cupón de recompensa exclusivo es:</p>
+                                    <span class="badge bg-dark fs-5 px-3 py-2">{{ mi_cupon_exclusivo.codigo }}</span>
+                                    <div class="form-text text-dark small mt-1">Este cupón es personal e intransferible. Aplícalo en tu carrito.</div>
                                 {% else %}
-                                    <p class="small mb-0 text-muted">El administrador aún no ha asignado un código de premio activo en el sistema.</p>
+                                    <p class="small mb-0 text-muted">Tu cupón se está generando en el sistema...</p>
                                 {% endif %}
                             </div>
                         {% endif %}
@@ -191,7 +186,6 @@
             </script>
 
         {% elif seccion == 'catalogo' %}
-            <!-- VISTA: CATÁLOGO Y CARRITO -->
             <div class="row">
                 <div class="col-md-7">
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
