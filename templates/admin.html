@@ -217,7 +217,7 @@
                     <h6 class="fw-bold text-dark mb-2 mt-4">👥 Registro y Control de Referidos Global</h6>
                     <table class="table table-sm table-bordered align-middle small mb-0">
                         <thead class="table-light">
-                            <tr><th>Patrocinador (Quien invita)</th><th>Amigo Invitado</th><th>Fecha</th><th>Estado de Meta (Pase 1456 Fragmentos)</th></tr>
+                            <tr><th>Patrocinador (Quien invita)</th><th>Amigo Invitado</th><th>Fecha</th><th>Estado de Meta (Equivalente a 1456 Fragmentos)</th></tr>
                         </thead>
                         <tbody>
                             {% for ref in registros_referidos %}
@@ -345,7 +345,7 @@
                 <div class="card-body p-0">
                     <table class="table table-striped align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr><th>Estado</th><th>Nombre</th><th>Correo</th><th>Rango</th><th>Categoría</th><th class="text-end">Acción</th></tr>
+                            <tr><th>Estado</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Rango</th><th>Categoría</th><th class="text-end">Acción</th></tr>
                         </thead>
                         <tbody>
                             {% for u in confirmados %}
@@ -363,6 +363,7 @@
                                 </td>
                                 <td class="fw-semibold">{{ u.nombre }}</td>
                                 <td>{{ u.correo }}</td>
+                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                 <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
                                 <td>
                                     <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST">
@@ -378,7 +379,7 @@
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="6" class="text-center py-3 text-muted">No hay clientes confirmados.</td></tr>
+                            <tr><td colspan="7" class="text-center py-3 text-muted">No hay clientes confirmados.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -467,51 +468,3 @@ function verificarNovedadesAdmin() {
                 if (contenedor) {
                     const alertaDiv = document.createElement('div');
                     alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
-                    alertaDiv.innerHTML = `<div>${mensaje}</div><div class="small mt-1 text-dark">⚡ Actualizando panel al instante...</div>`;
-                    contenedor.appendChild(alertaDiv);
-                }
-                setTimeout(() => { location.reload(); }, 800);
-            }
-        })
-        .catch(err => {});
-
-    {% if seccion == 'gestion_usuarios' %}
-    fetch('/api/estado-usuarios?t=' + Date.now(), { cache: 'no-store' })
-        .then(res => res.json())
-        .then(estados => {
-            for (const [id, enLinea] of Object.entries(estados)) {
-                const badge = document.getElementById(`badge-estado-${id}`);
-                if (badge) {
-                    if (enLinea) {
-                        badge.className = 'd-inline-flex align-items-center text-success fw-bold';
-                        badge.title = 'En línea';
-                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span> En línea`;
-                    } else {
-                        badge.className = 'd-inline-flex align-items-center text-muted';
-                        badge.title = 'Desconectado';
-                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span> Desconectado`;
-                    }
-                }
-            }
-        })
-        .catch(err => {});
-    {% endif %}
-}
-
-setInterval(verificarNovedadesAdmin, 3000);
-
-function copiarTexto(texto, elemento) {
-    navigator.clipboard.writeText(texto).then(function() {
-        let originalHTML = elemento.innerHTML;
-        elemento.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
-        elemento.classList.remove('bg-dark');
-        elemento.classList.add('bg-success');
-        setTimeout(function() {
-            elemento.innerHTML = originalHTML;
-            elemento.classList.remove('bg-success');
-            elemento.classList.add('bg-dark');
-        }, 1200);
-    });
-}
-</script>
-{% endblock %}
