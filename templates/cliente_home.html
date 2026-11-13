@@ -191,7 +191,7 @@
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
                         
-                        <!-- FRAGMENTOS (Sin precios escritos, solo tarjeta limpia con etiqueta -17%) -->
+                        <!-- FRAGMENTOS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -210,7 +210,7 @@
                             </div>
                         </div>
 
-                        <!-- CAJAS (Sin precios escritos, solo tarjeta limpia con etiqueta -17%) -->
+                        <!-- CAJAS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -229,7 +229,7 @@
                             </div>
                         </div>
 
-                        <!-- PASES (Sin precios escritos, solo tarjeta limpia con etiqueta -17%) -->
+                        <!-- PASES -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -260,11 +260,12 @@
                             {% if carrito and carrito|length > 0 %}
                                 <ul class="list-group mb-3">
                                     {% for item in carrito %}
+                                        {% set sub_17 = item.subtotal * 1.17 %}
                                         <li class="list-group-item d-flex justify-content-between align-items-center small">
                                             <div>
                                                 <span class="fw-bold">{{ item.producto }}</span> <span class="text-muted">(x{{ item.cantidad }})</span>
                                             </div>
-                                            <span class="text-success fw-bold">S/ {{ item.subtotal }}</span>
+                                            <span class="text-success fw-bold">S/ {{ "%.2f"|format(sub_17) }}</span>
                                         </li>
                                     {% endfor %}
                                 </ul>
@@ -280,16 +281,19 @@
                                     {% endif %}
                                 </form>
 
+                                {% set subtotal_17 = total_general * 1.17 %}
+                                {% set descuento_17 = total_general * 0.17 %}
+
                                 <div class="mb-3 p-2 bg-light rounded border small">
                                     <div class="d-flex justify-content-between text-muted">
                                         <span>Subtotal:</span>
-                                        <span>S/ {{ total_general }}</span>
+                                        <span>S/ {{ "%.2f"|format(subtotal_17) }}</span>
                                     </div>
                                     
-                                    <!-- Concepto de descuento reflejado como pediste en la imagen -->
+                                    <!-- Descuento Ciber Wow calculado dinámicamente con el 17% -->
                                     <div class="d-flex justify-content-between text-muted">
                                         <span>Ciber Wow WindNexx:</span>
-                                        <span class="text-danger">-S/ 20.29</span>
+                                        <span class="text-danger">-S/ {{ "%.2f"|format(descuento_17) }}</span>
                                     </div>
 
                                     {% if descuento_monto > 0 %}
