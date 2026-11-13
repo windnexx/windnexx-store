@@ -51,6 +51,12 @@ class CodigoPromo(db.Model):
     es_premio_referido = db.Column(db.Boolean, default=False)
     propietario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
 
+# Tabla de Configuración Global de Premios de Referidos (Nuevo cuadro de control)
+class ConfiguracionReferido(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre_premio = db.Column(db.String(100), default='Descuento por Referido')
+    descuento_porcentaje = db.Column(db.Float, default=6.0) # <--- Aquí puedes cambiar el % futuro de los referidos
+
 # Tabla auxiliar para control de códigos
 class UsoCodigoUsuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -105,6 +111,12 @@ with app.app_context():
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
+    # Asegurar configuración inicial de referido al 6%
+    if not ConfiguracionReferido.query.first():
+        conf_inicial = ConfiguracionReferido(nombre_premio='Cupón de Recompensa de Referido', descuento_porcentaje=6.0)
+        db.session.add(conf_inicial)
+        db.session.commit()
+
     for u in Usuario.query.filter_by(codigo_referido=None).all():
         u.codigo_referido = f"WIND-{u.id}-{os.urandom(2).hex().upper()}"
     db.session.commit()
@@ -313,6 +325,7 @@ def admin_panel():
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
     registros_referidos = RegistroReferido.query.all()
+    config_referido = ConfiguracionReferido.query.first()
     
     limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
     for u in usuarios_confirmados:
@@ -341,6 +354,7 @@ def admin_panel():
         solicitudes_reset=solicitudes_reset,
         codigos_promo=codigos_promo,
         registros_referidos=registros_referidos,
+        config_referido=config_referido,
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
@@ -349,6 +363,29 @@ def admin_panel():
         seccion=seccion_admin,
         Usuario=Usuario
     )
+
+@app.route('/admin/actualizar_config_referido', methods=['POST'])
+def actualizar_config_referido():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    
+    try:
+        nuevo_descuento = float(request.form.get('descuento_referido', 6.0))
+        nombre_premio = request.form.get('nombre_premio', 'Cupón de Recompensa de Referido').strip()
+        
+        config = ConfiguracionReferido.query.first()
+        if not config:
+            config = ConfiguracionReferido()
+            db.session.add(config)
+            
+        config.descuento_porcentaje = nuevo_descuento
+        config.nombre_premio = nombre_premio
+        db.session.commit()
+        flash('Configuración del premio de referidos actualizada exitosamente.', 'success')
+    except ValueError:
+        flash('Valor de descuento inválido.', 'danger')
+        
+    return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/admin/crear_codigo', methods=['POST'])
 def crear_codigo():
@@ -366,8 +403,6 @@ def crear_codigo():
         max_usos_primeras = int(request.form.get('max_usos_primeras', 0))
     except ValueError:
         max_usos_primeras = 0
-
-    es_premio = True if request.form.get('es_premio_referido') == 'on' else False
     
     if codigo and descuento > 0:
         if not CodigoPromo.query.filter_by(codigo=codigo).first():
@@ -377,7 +412,7 @@ def crear_codigo():
                 tipo_limite=tipo_limite,
                 max_usos_primeras=max_usos_primeras,
                 usos_actuales=0,
-                es_premio_referido=es_premio
+                es_premio_referido=False
             )
             db.session.add(nuevo_cp)
             db.session.commit()
@@ -501,15 +536,17 @@ def completar_recarga(id):
                 reg_ref.meta_cumplida = True
                 db.session.commit()
 
-                # Crear cupón exclusivo y personal para el patrocinador que ganó la recompensa
                 patrocinador = Usuario.query.get(cliente_pedido.referido_por_id)
                 if patrocinador:
+                    config_ref = ConfiguracionReferido.query.first()
+                    porcentaje_premio = config_ref.descuento_porcentaje if config_ref else 6.0
+                    
                     codigo_personal = f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}"
                     existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
                     if not existe_cupon:
                         nuevo_cupon_ref = CodigoPromo(
                             codigo=codigo_personal,
-                            descuento_porcentaje=10.0,
+                            descuento_porcentaje=porcentaje_premio,
                             tipo_limite='una_por_cuenta',
                             es_premio_referido=True,
                             propietario_id=patrocinador.id
@@ -629,11 +666,14 @@ def cliente_home():
                 ref.meta_cumplida = True
                 patrocinador = Usuario.query.get(ref.patrocinador_id)
                 if patrocinador:
+                    config_ref = ConfiguracionReferido.query.first()
+                    porcentaje_premio = config_ref.descuento_porcentaje if config_ref else 6.0
+                    
                     existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
                     if not existe_cupon:
                         nuevo_cupon_ref = CodigoPromo(
                             codigo=f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}",
-                            descuento_porcentaje=10.0,
+                            descuento_porcentaje=porcentaje_premio,
                             tipo_limite='una_por_cuenta',
                             es_premio_referido=True,
                             propietario_id=patrocinador.id
@@ -738,7 +778,6 @@ def aplicar_codigo():
         
     usuario_id = session['usuario_id']
     
-    # Validar exclusividad del cupón de referido
     if cp.es_premio_referido and cp.propietario_id != usuario_id:
         flash('Cupón inválido: este código de recompensa no te pertenece o aún no has completado la misión.', 'danger')
         return redirect(url_for('cliente_home', seccion='catalogo'))

@@ -155,16 +155,42 @@
             </div>
 
         {% elif seccion == 'codigos_promo' %}
-            <!-- CÓDIGOS PROMOCIONALES Y PREMIOS DE REFERIDOS -->
+            
+            <!-- CUADRO DE CONFIGURACIÓN DEL PREMIO AUTOMÁTICO DE REFERIDOS -->
+            <div class="card shadow-sm border-success mb-4">
+                <div class="card-header bg-success text-white fw-bold">
+                    ⚙️ Configuración del Premio Automático por Amigo Referido
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('actualizar_config_referido') }}" method="POST" class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold">Nombre del Premio:</label>
+                            <input type="text" name="nombre_premio" class="form-control form-control-sm" value="{{ config_referido.nombre_premio if config_referido else 'Cupón de Recompensa' }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Descuento del Premio (%):</label>
+                            <input type="number" step="0.1" name="descuento_referido" class="form-control form-control-sm" value="{{ config_referido.descuento_porcentaje if config_referido else 6.0 }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-dark btn-sm w-100 fw-bold">Guardar</button>
+                        </div>
+                    </form>
+                    <div class="form-text small text-muted mt-2">
+                        * Este porcentaje se aplicará automáticamente al código único y exclusivo que se genera para el patrocinador cuando su amigo completa la meta.
+                    </div>
+                </div>
+            </div>
+
+            <!-- CÓDIGOS PROMOCIONALES GENERALES -->
             <div class="card shadow-sm border-info mb-4">
                 <div class="card-header bg-info text-white fw-bold">
-                    🎟️ Gestión de Códigos Promocionales, Límites y Premios de Referidos
+                    🎟️ Gestión de Códigos Promocionales y Límites (Generales)
                 </div>
                 <div class="card-body">
                     <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-3 mb-4 align-items-end">
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Código:</label>
-                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. PREMIOREF10" required>
+                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-bold">Descuento (%):</label>
@@ -183,18 +209,14 @@
                             <input type="number" name="max_usos_primeras" class="form-control form-control-sm" value="0" placeholder="Ej. 10">
                         </div>
                         <div class="col-md-2">
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="checkbox" name="es_premio_referido" id="es_premio_referido">
-                                <label class="form-check-label small fw-bold text-dark" for="es_premio_referido">Premio Amigo Referido</label>
-                            </div>
-                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button>
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold mt-4">Crear Código</button>
                         </div>
                     </form>
 
                     <h6 class="fw-bold text-dark mb-2">Códigos Activos y Premios Configurados</h6>
                     <table class="table table-sm table-bordered align-middle small mb-3">
                         <thead class="table-light">
-                            <tr><th>Código</th><th>Descuento</th><th>Regla de Uso</th><th>Premio Referido?</th><th class="text-end">Acción</th></tr>
+                            <tr><th>Código</th><th>Descuento</th><th>Regla de Uso</th><th>Tipo</th><th class="text-end">Acción</th></tr>
                         </thead>
                         <tbody>
                             {% for cp in codigos_promo %}
@@ -202,7 +224,7 @@
                                 <td class="fw-bold text-primary">{{ cp.codigo }}</td>
                                 <td>{{ cp.descuento_porcentaje }}%</td>
                                 <td>{{ cp.tipo_limite }}</td>
-                                <td>{% if cp.es_premio_referido %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                                <td>{% if cp.es_premio_referido %}<span class="badge bg-success">Referido (Automático)</span>{% else %}<span class="badge bg-secondary">General (Manual)</span>{% endif %}</td>
                                 <td class="text-end">
                                     <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
                                 </td>
