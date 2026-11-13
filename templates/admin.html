@@ -468,3 +468,51 @@ function verificarNovedadesAdmin() {
                 if (contenedor) {
                     const alertaDiv = document.createElement('div');
                     alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
+                    alertaDiv.innerHTML = `<div>${mensaje}</div><div class="small mt-1 text-dark">⚡ Actualizando panel al instante...</div>`;
+                    contenedor.appendChild(alertaDiv);
+                }
+                setTimeout(() => { location.reload(); }, 800);
+            }
+        })
+        .catch(err => {});
+
+    {% if seccion == 'gestion_usuarios' %}
+    fetch('/api/estado-usuarios?t=' + Date.now(), { cache: 'no-store' })
+        .then(res => res.json())
+        .then(estados => {
+            for (const [id, enLinea] of Object.entries(estados)) {
+                const badge = document.getElementById(`badge-estado-${id}`);
+                if (badge) {
+                    if (enLinea) {
+                        badge.className = 'd-inline-flex align-items-center text-success fw-bold';
+                        badge.title = 'En línea';
+                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span> En línea`;
+                    } else {
+                        badge.className = 'd-inline-flex align-items-center text-muted';
+                        badge.title = 'Desconectado';
+                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span> Desconectado`;
+                    }
+                }
+            }
+        })
+        .catch(err => {});
+    {% endif %}
+}
+
+setInterval(verificarNovedadesAdmin, 3000);
+
+function copiarTexto(texto, elemento) {
+    navigator.clipboard.writeText(texto).then(function() {
+        let originalHTML = elemento.innerHTML;
+        elemento.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
+        elemento.classList.remove('bg-dark');
+        elemento.classList.add('bg-success');
+        setTimeout(function() {
+            elemento.innerHTML = originalHTML;
+            elemento.classList.remove('bg-success');
+            elemento.classList.add('bg-dark');
+        }, 1200);
+    });
+}
+</script>
+{% endblock %}

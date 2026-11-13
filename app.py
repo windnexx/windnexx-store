@@ -24,6 +24,7 @@ TIMEZONE_LIMA = ZoneInfo("America/Lima")
 def hora_lima():
     return datetime.now(TIMEZONE_LIMA)
 
+# Modelo de Usuario
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -39,6 +40,7 @@ class Usuario(db.Model):
     referido_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
     rango = db.Column(db.String(20), default='Bronce')
 
+# Modelo de Código Promocional
 class CodigoPromo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
@@ -48,11 +50,13 @@ class CodigoPromo(db.Model):
     usos_actuales = db.Column(db.Integer, default=0)
     es_premio_referido = db.Column(db.Boolean, default=False)
 
+# Tabla auxiliar para control de códigos
 class UsoCodigoUsuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     codigo_id = db.Column(db.Integer, db.ForeignKey('codigo_promo.id'), nullable=False)
 
+# Modelo de Registro de Referidos
 class RegistroReferido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -60,6 +64,7 @@ class RegistroReferido(db.Model):
     meta_cumplida = db.Column(db.Boolean, default=False)
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
 
+# Modelo de Pedido
 class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -98,6 +103,7 @@ with app.app_context():
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
+    # Asignar código de referido automático a usuarios antiguos si no lo tienen
     for u in Usuario.query.filter_by(codigo_referido=None).all():
         u.codigo_referido = f"WIND-{u.id}-{os.urandom(2).hex().upper()}"
     db.session.commit()
@@ -486,6 +492,7 @@ def completar_recarga(id):
     pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
 
+    # Validar si el cliente cumple la meta de referidos (equivalente a 1456 fragmentos)
     cliente_pedido = Usuario.query.get(pedido.usuario_id)
     if cliente_pedido and cliente_pedido.referido_por_id:
         _, _, _, frag_equiv_total = calcular_estadisticas_usuario(cliente_pedido.id)
@@ -535,19 +542,11 @@ def eliminar_usuario(id):
         return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
         
     try:
-        # 1. Eliminar pedidos asociados al usuario
         Pedido.query.filter_by(usuario_id=usuario.id).delete()
-        
-        # 2. Eliminar registros de referidos donde sea patrocinador o referido
         RegistroReferido.query.filter((RegistroReferido.patrocinador_id == usuario.id) | (RegistroReferido.referido_id == usuario.id)).delete()
-        
-        # 3. Eliminar usos de códigos promocionales del usuario
         UsoCodigoUsuario.query.filter_by(usuario_id=usuario.id).delete()
-        
-        # 4. Desvincular a otros usuarios que tuvieran a este como referido_por_id
         Usuario.query.filter_by(referido_por_id=usuario.id).update({Usuario.referido_por_id: None})
 
-        # 5. Finalmente, eliminar al usuario
         db.session.delete(usuario)
         db.session.commit()
         
@@ -558,6 +557,7 @@ def eliminar_usuario(id):
 
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
+# Rutas del Cliente
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
@@ -570,7 +570,7 @@ def cliente_home():
         session['codigo_aplicado'] = None
         session['descuento_porcentaje'] = 0.0
         
-    seccion = request.args.get('seccion', 'perfil')
+    seccion = request.args.get('seccion', 'catalogo')
     
     codigo_pat = request.args.get('codigo_patrocinador', '').strip().upper()
     usuario_actual = db.session.get(Usuario, session['usuario_id'])
