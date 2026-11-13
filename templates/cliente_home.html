@@ -190,11 +190,18 @@
                 <div class="col-md-7">
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
+                        
+                        <!-- FRAGMENTOS -->
                         <div class="col">
-                            <div class="card h-100 shadow-sm text-center p-2">
-                                <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Fragmentos">
+                            <div class="card h-100 shadow-sm text-center p-2 position-relative">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
+                                <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Fragmentos">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold">Fragmentos</h6>
+                                    <h6 class="card-title fw-bold mb-1">Fragmentos</h6>
+                                    <div class="mb-2">
+                                        <span class="text-muted text-decoration-line-through small me-1">S/ 0.10</span>
+                                        <span class="badge bg-success fs-6 px-2 py-1">S/ 0.082</span>
+                                    </div>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
                                         <input type="hidden" name="producto" value="Fragmentos">
                                         <div class="input-group input-group-sm mb-2">
@@ -207,11 +214,17 @@
                             </div>
                         </div>
 
+                        <!-- CAJAS -->
                         <div class="col">
-                            <div class="card h-100 shadow-sm text-center p-2">
-                                <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Cajas">
+                            <div class="card h-100 shadow-sm text-center p-2 position-relative">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
+                                <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Cajas">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold">Cajas</h6>
+                                    <h6 class="card-title fw-bold mb-1">Cajas</h6>
+                                    <div class="mb-2">
+                                        <span class="text-muted text-decoration-line-through small me-1">S/ 0.54</span>
+                                        <span class="badge bg-success fs-6 px-2 py-1">S/ 0.45</span>
+                                    </div>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
                                         <input type="hidden" name="producto" value="Cajas">
                                         <div class="input-group input-group-sm mb-2">
@@ -224,11 +237,17 @@
                             </div>
                         </div>
 
+                        <!-- PASES -->
                         <div class="col">
-                            <div class="card h-100 shadow-sm text-center p-2">
-                                <img src="{{ url_for('static', filename='pases.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Pases">
+                            <div class="card h-100 shadow-sm text-center p-2 position-relative">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
+                                <img src="{{ url_for('static', filename='pases.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Pases">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold">Pases</h6>
+                                    <h6 class="card-title fw-bold mb-1">Pases</h6>
+                                    <div class="mb-2">
+                                        <span class="text-muted text-decoration-line-through small me-1">S/ 3.60</span>
+                                        <span class="badge bg-success fs-6 px-2 py-1">S/ 3.00</span>
+                                    </div>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
                                         <input type="hidden" name="producto" value="Pases">
                                         <div class="input-group input-group-sm mb-2">
@@ -240,6 +259,7 @@
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -425,9 +445,9 @@
                     {% if historial %}
                         <div class="table-responsive">
                             <table class="table table-hover align-middle small">
-                                <thead class="table-light">
+                                <td class="table-light">
                                     <tr><th>Fecha</th><th>ID Destino</th><th>Productos</th><th>Total</th><th>Operación Yape</th><th>Estado</th></tr>
-                                </thead>
+                                </td>
                                 <tbody>
                                     {% for h in historial %}
                                     <tr>
