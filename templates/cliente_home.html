@@ -33,7 +33,7 @@
     <div class="col-md-9">
 
         {% if seccion == 'perfil' %}
-            <!-- VISTA: MI PERFIL -->
+            <!-- VISTA: MI PERFIL (LIMPIO SIN LISTA DE REFERIDOS) -->
             <div class="card shadow-sm border-dark">
                 <div class="card-header bg-dark text-white fw-bold text-uppercase">
                     👤 Información de Mi Perfil
@@ -60,7 +60,7 @@
                             <div class="progress" style="height: 15px;">
                                 <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ progreso_porcentaje }}%;" aria-valuenow="{{ progreso_porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
-                            <div class="form-text mt-1 text-muted small">Al acumular 5000 fragmentos en compras, tu cuenta asciende a Rango Plata.</div>
+                            <div class="form-text mt-1 text-muted small">Al acumular 5000 fragmentos (o su valor equivalente) en compras, tu cuenta asciende a Rango Plata.</div>
                         </div>
                     </div>
 
@@ -85,57 +85,19 @@
                         </div>
                     </div>
 
-                    <!-- LISTA DE REFERIDOS HECHOS -->
-                    <div class="mt-4">
-                        <h6 class="fw-bold text-dark mb-3">🤝 Mis Amigos Referidos</h6>
-                        {% if mis_referidos %}
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered align-middle">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Amigo Registrado</th>
-                                            <th>Fecha de Registro</th>
-                                            <th>Estado de Compra (Pase 1456 Fragmentos)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for ref in mis_referidos %}
-                                            {% set amigo = Usuario.query.get(ref.referido_id) %}
-                                            <tr>
-                                                <td class="fw-bold">{{ amigo.nombre if amigo else 'Usuario' }}</td>
-                                                <td>{{ ref.fecha }}</td>
-                                                <td>
-                                                    {% if ref.meta_cumplida %}
-                                                        <span class="badge bg-success">Meta Cumplida (¡Premio Activo!)</span>
-                                                    {% else %}
-                                                        <span class="badge bg-warning text-dark">Pendiente de comprar pase (1456 fragmentos)</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        {% else %}
-                            <div class="alert alert-light border text-center small text-muted py-3">
-                                Aún no has invitado a ningún amigo. ¡Comparte tu código desde la sección "Amigo Referidos"!
-                            </div>
-                        {% endif %}
-                    </div>
-
                 </div>
             </div>
 
         {% elif seccion == 'amigo_referidos' %}
-            <!-- VISTA: AMIGO REFERIDOS -->
-            <div class="card shadow-sm border-success">
+            <!-- VISTA: AMIGO REFERIDOS (CON SU HISTORIAL Y CUPÓN GANADO) -->
+            <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold">
                     🤝 Sistema de Amigo Referido
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h6 class="fw-bold">¿Cómo funciona?</h6>
-                        <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren un pase equivalente a <strong>1456 fragmentos</strong>, ¡ambos recibirán increíbles beneficios y cupones de descuento!</p>
+                        <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren el valor equivalente a <strong>1456 fragmentos</strong> (en fragmentos, cajas o pases), ¡recibirás tu cupón de recompensa automáticamente!</p>
                     </div>
 
                     <div class="mb-4 p-3 bg-light rounded border text-center">
@@ -147,19 +109,74 @@
                     </div>
 
                     {% if not usuario.referido_por_id %}
-                        <form action="{{ url_for('cliente_home') }}" method="GET" class="p-3 bg-light rounded border">
+                        <form action="{{ url_for('cliente_home') }}" method="GET" class="p-3 bg-light rounded border mb-4">
                             <input type="hidden" name="seccion" value="amigo_referidos">
                             <label class="form-label fw-bold small text-dark">¿Te invitó un amigo? Ingresa su código aquí (Solo cuentas nuevas):</label>
                             <div class="input-group input-group-sm w-75">
-                                <input type="text" name="codigo_patrocinador" class="form-control" placeholder="Ej. WIND-1-ABCD">
+                                <input type="text" name="codigo_patrocinador" class="form-control" placeholder="Ej. WIND-1-ABCD" required>
                                 <button class="btn btn-dark fw-bold" type="submit">Vincular Código</button>
                             </div>
                         </form>
                     {% else %}
-                        <div class="alert alert-success text-center small">
+                        <div class="alert alert-success text-center small mb-4">
                             ✓ Ya estás vinculado con el código de tu patrocinador exitosamente.
                         </div>
                     {% endif %}
+
+                    <!-- LISTA DE MIS AMIGOS REFERIDOS Y CUPÓN GANADO -->
+                    <h6 class="fw-bold text-dark mb-3">📋 Historial de Mis Amigos Referidos</h6>
+                    {% if mis_referidos %}
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Amigo Registrado</th>
+                                        <th>Fecha de Registro</th>
+                                        <th>Estado de Meta (Equivalente a 1456 Fragmentos)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ref in mis_referidos %}
+                                        {% set amigo = Usuario.query.get(ref.referido_id) %}
+                                        <tr>
+                                            <td class="fw-bold">{{ amigo.nombre if amigo else 'Usuario' }}</td>
+                                            <td>{{ ref.fecha }}</td>
+                                            <td>
+                                                {% if ref.meta_cumplida %}
+                                                    <span class="badge bg-success">Meta Cumplida ✓</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">Pendiente de compra</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% set metacomplida = namespace(valor=false) %}
+                        {% for ref in mis_referidos %}
+                            {% if ref.meta_cumplida %}{% set metacomplida.valor = true %}{% endif %}
+                        {% endfor %}
+
+                        {% if metacomplida.valor %}
+                            <div class="alert alert-success text-center shadow-sm">
+                                <h6 class="fw-bold mb-1">🎉 ¡Felicitaciones! Tienes referidos que completaron la meta.</h6>
+                                {% if codigo_premio_activo %}
+                                    <p class="small mb-1">Tu código de cupón de recompensa es:</p>
+                                    <span class="badge bg-dark fs-5 px-3 py-2">{{ codigo_premio_activo }}</span>
+                                    <div class="form-text text-dark small mt-1">Aplica este código en tu carrito de compras para obtener tu descuento.</div>
+                                {% else %}
+                                    <p class="small mb-0 text-muted">El administrador aún no ha asignado un código de premio activo en el sistema.</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-light border text-center small text-muted py-3">
+                            Aún no has invitado a ningún amigo. ¡Comparte tu código arriba para empezar!
+                        </div>
+                    {% endif %}
+
                 </div>
             </div>
 
@@ -179,8 +196,6 @@
                 <div class="col-md-7">
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
-                        
-                        <!-- Fragmentos -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2">
                                 <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Fragmentos">
@@ -198,7 +213,6 @@
                             </div>
                         </div>
 
-                        <!-- Cajas -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2">
                                 <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Cajas">
@@ -216,7 +230,6 @@
                             </div>
                         </div>
 
-                        <!-- Pases -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2">
                                 <img src="{{ url_for('static', filename='pases.png') }}" class="card-img-top mx-auto" style="height: 80px; object-fit: contain;" alt="Pases">
@@ -233,11 +246,9 @@
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
-                <!-- Carrito de Compras Limpio -->
                 <div class="col-md-5">
                     <div class="card shadow-sm border-dark">
                         <div class="card-header bg-dark text-white fw-bold">
@@ -256,7 +267,6 @@
                                     {% endfor %}
                                 </ul>
 
-                                <!-- Cuadro de Código Promocional -->
                                 <form action="{{ url_for('aplicar_codigo') }}" method="POST" class="mb-3 p-2 bg-light rounded border">
                                     <label class="form-label fw-bold text-secondary" style="font-size: 11px;">Usar código promocional:</label>
                                     <div class="input-group input-group-sm">
@@ -268,7 +278,6 @@
                                     {% endif %}
                                 </form>
 
-                                <!-- Totales -->
                                 <div class="mb-3 p-2 bg-light rounded border small">
                                     <div class="d-flex justify-content-between text-muted">
                                         <span>Subtotal:</span>
@@ -305,7 +314,6 @@
             </div>
 
         {% elif seccion == 'pago_yape' %}
-            <!-- VISTA: PASARELA DE PAGO YAPE -->
             <div class="row g-4 align-items-start">
                 <div class="col-md-5">
                     <div class="p-4 rounded shadow-sm text-center" style="background-color: #6a1b9a;">
@@ -364,7 +372,6 @@
             </div>
 
         {% elif seccion == 'seguimiento' %}
-            <!-- SEGUIMIENTO DE PEDIDO -->
             <div class="card shadow-sm border-info">
                 <div class="card-header bg-info text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📦 Seguimiento de mi Pedido</span>
@@ -416,7 +423,6 @@
             </div>
 
         {% elif seccion == 'historial' %}
-            <!-- HISTORIAL DE COMPRAS -->
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-secondary text-white fw-bold">
                     📋 Historial de Compras

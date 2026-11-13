@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -18,13 +19,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Zona horaria de Lima, Perú
 TIMEZONE_LIMA = ZoneInfo("America/Lima")
 
 def hora_lima():
     return datetime.now(TIMEZONE_LIMA)
 
-# Modelo de Usuario
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -36,12 +35,10 @@ class Usuario(db.Model):
     categoria = db.Column(db.String(20), default='Cliente')
     solicitud_reset = db.Column(db.Boolean, default=False)
     ultima_actividad = db.Column(db.DateTime, nullable=True)
-    # Campos de referidos y rangos
     codigo_referido = db.Column(db.String(20), unique=True, nullable=True)
     referido_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
     rango = db.Column(db.String(20), default='Bronce')
 
-# Modelo de Código Promocional y Premios de Referidos
 class CodigoPromo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
@@ -49,15 +46,13 @@ class CodigoPromo(db.Model):
     tipo_limite = db.Column(db.String(20), default='ilimitado')
     max_usos_primeras = db.Column(db.Integer, default=0) 
     usos_actuales = db.Column(db.Integer, default=0)
-    es_premio_referido = db.Column(db.Boolean, default=False) # Para configurar el premio automático de referidos
+    es_premio_referido = db.Column(db.Boolean, default=False)
 
-# Tabla auxiliar para control de códigos usados
 class UsoCodigoUsuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     codigo_id = db.Column(db.Integer, db.ForeignKey('codigo_promo.id'), nullable=False)
 
-# Registro de Referidos
 class RegistroReferido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -65,7 +60,6 @@ class RegistroReferido(db.Model):
     meta_cumplida = db.Column(db.Boolean, default=False)
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
 
-# Modelo de Pedido
 class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -104,7 +98,6 @@ with app.app_context():
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
-    # Asignar códigos de referido a usuarios antiguos que no tengan
     for u in Usuario.query.filter_by(codigo_referido=None).all():
         u.codigo_referido = f"WIND-{u.id}-{os.urandom(2).hex().upper()}"
     db.session.commit()
@@ -171,6 +164,35 @@ PRECIOS = {
     'Cajas': 0.45,
     'Pases': 3.00
 }
+
+def calcular_estadisticas_usuario(usuario_id):
+    """Calcula cantidades exactas compradas y fragmentos equivalentes."""
+    pedidos_completados = Pedido.query.filter_by(usuario_id=usuario_id, estado='Completado').all()
+    total_pases = 0
+    total_fragmentos = 0
+    total_cajas = 0
+    monto_total_comprado = 0.0
+
+    for p in pedidos_completados:
+        # Extraer cantidades exactas usando expresiones regulares del texto (ej. "Fragmentos (x1456)")
+        m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
+        if m_frag:
+            total_fragmentos += int(m_frag.group(1))
+
+        m_cajas = re.search(r'Cajas \(x(\d+)\)', p.detalle)
+        if m_cajas:
+            total_cajas += int(m_cajas.group(1))
+
+        m_pases = re.search(r'Pases \(x(\d+)\)', p.detalle)
+        if m_pases:
+            total_pases += int(m_pases.group(1))
+
+        # Sumar valor original antes de descuentos (total + descuento_aplicado)
+        monto_total_comprado += (p.total + (p.descuento_aplicado or 0.0))
+
+    # Convertir todo el valor comprado a su equivalente en Fragmentos (1 Fragmento = S/ 0.082)
+    fragmentos_equivalentes = int(round(monto_total_comprado / PRECIOS['Fragmentos']))
+    return total_pases, total_fragmentos, total_cajas, fragmentos_equivalentes
 
 @app.route('/')
 def index():
@@ -244,7 +266,6 @@ def register():
         db.session.add(nuevo_usuario)
         db.session.commit()
         
-        # Generar código de referido único basado en su ID nuevo
         nuevo_usuario.codigo_referido = f"WIND-{nuevo_usuario.id}-{os.urandom(2).hex().upper()}"
         
         if patrocinador:
@@ -468,11 +489,11 @@ def completar_recarga(id):
     pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
 
-    # Verificar si el pedido cumple con la regla de referidos: Pase equivalente a 1456 fragmentos
-    # (Asumimos que el pase o items comprados suman o equivalen a la regla o contiene pases)
-    if "Pases" in pedido.detalle:
-        cliente_pedido = Usuario.query.get(pedido.usuario_id)
-        if cliente_pedido and cliente_pedido.referido_por_id:
+    # VALIDACIÓN EXACTA POR VALOR EQUIVALENTE A 1456 FRAGMENTOS (Fragmentos, Cajas o Pases)
+    cliente_pedido = Usuario.query.get(pedido.usuario_id)
+    if cliente_pedido and cliente_pedido.referido_por_id:
+        _, _, _, frag_equiv_total = calcular_estadisticas_usuario(cliente_pedido.id)
+        if frag_equiv_total >= 1456:
             reg_ref = RegistroReferido.query.filter_by(patrocinador_id=cliente_pedido.referido_por_id, referido_id=cliente_pedido.id).first()
             if reg_ref and not reg_ref.meta_cumplida:
                 reg_ref.meta_cumplida = True
@@ -522,7 +543,6 @@ def eliminar_usuario(id):
     flash(f'El usuario {usuario.nombre} ha sido eliminado.', 'info')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
-# Rutas del Cliente
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
@@ -537,29 +557,30 @@ def cliente_home():
         
     seccion = request.args.get('seccion', 'perfil')
     
+    codigo_pat = request.args.get('codigo_patrocinador', '').strip().upper()
     usuario_actual = db.session.get(Usuario, session['usuario_id'])
-
-    # Calcular estadísticas totales del usuario para su perfil
-    pedidos_completados = Pedido.query.filter_by(usuario_id=usuario_actual.id, estado='Completado').all()
-    total_pases = 0
-    total_fragmentos = 0
-    total_cajas = 0
     
-    for p in pedidos_completados:
-        # Analizar detalle de pases, fragmentos, cajas
-        if "Pases" in p.detalle:
-            # Extraer cantidad numérica o sumar
-            total_pases += 1 # O parsear x cantidad
-        if "Fragmentos" in p.detalle:
-            total_fragmentos += 1456 # Ejemplo o conteo según cantidad
-        if "Cajas" in p.detalle:
-            total_cajas += 1
+    if codigo_pat and not usuario_actual.referido_por_id:
+        patrocinador = Usuario.query.filter_by(codigo_referido=codigo_pat).first()
+        if patrocinador and patrocinador.id != usuario_actual.id:
+            usuario_actual.referido_por_id = patrocinador.id
+            nuevo_reg = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=usuario_actual.id)
+            db.session.add(nuevo_reg)
+            db.session.commit()
+            
+            # Revisar si este usuario ya había comprado >= 1456 fragmentos equivalentes antes de vincularse
+            _, _, _, frag_equiv_actual = calcular_estadisticas_usuario(usuario_actual.id)
+            if frag_equiv_actual >= 1456:
+                nuevo_reg.meta_cumplida = True
+                db.session.commit()
+                
+            flash('¡Te has vinculado exitosamente con el código de tu amigo!', 'success')
+        else:
+            flash('El código de patrocinador ingresado no es válido.', 'danger')
+        return redirect(url_for('cliente_home', seccion='amigo_referidos'))
 
-    # Calcular puntaje/equivalente en fragmentos para los rangos (Bronce a Plata = 5000 fragmentos)
-    # Supongamos que 1 pase = 1456 fragmentos o cantidad exacta sumada de fragmentos comprados
-    puntos_fragmentos = (total_pases * 1456) + total_fragmentos
+    total_pases, total_fragmentos, total_cajas, puntos_fragmentos = calcular_estadisticas_usuario(usuario_actual.id)
     
-    # Lógica de rangos y barra de progreso
     meta_rango = 5000
     if puntos_fragmentos >= meta_rango:
         usuario_actual.rango = 'Plata'
@@ -569,8 +590,18 @@ def cliente_home():
         progreso_porcentaje = int((puntos_fragmentos / meta_rango) * 100)
     db.session.commit()
 
-    # Obtener lista de referidos hechos por este usuario
     mis_referidos = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).all()
+    
+    # Verificar retrospectivamente si algún referido ya cumplió la meta de 1456 fragmentos equivalentes
+    for ref in mis_referidos:
+        if not ref.meta_cumplida:
+            _, _, _, f_eq = calcular_estadisticas_usuario(ref.referido_id)
+            if f_eq >= 1456:
+                ref.meta_cumplida = True
+    db.session.commit()
+
+    premio_referido_obj = CodigoPromo.query.filter_by(es_premio_referido=True).first()
+    codigo_premio_activo = premio_referido_obj.codigo if premio_referido_obj else None
 
     buscar_id = request.args.get('buscar_id', '').strip()
     resultados_seguimiento = []
@@ -611,6 +642,7 @@ def cliente_home():
         puntos_fragmentos=puntos_fragmentos,
         meta_rango=meta_rango,
         mis_referidos=mis_referidos,
+        codigo_premio_activo=codigo_premio_activo,
         Usuario=Usuario,
         carrito=carrito_calculado, 
         total_general=round(total_general, 2),
