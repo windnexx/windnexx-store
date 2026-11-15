@@ -318,6 +318,7 @@ def register():
         
     return render_template('register.html')
 
+# NUEVA RUTA PARA PROCESAR EL SOPORTE Y FOTOS DESDE EL CLIENTE O LOGIN
 @app.route('/soporte/enviar', methods=['POST'])
 def enviar_soporte():
     nombre = request.form.get('nombre', '').strip()
@@ -416,6 +417,7 @@ def admin_panel():
         Usuario=Usuario
     )
 
+# RUTA PARA MARCAR SOPORTE COMO ATENDIDO
 @app.route('/admin/soporte/atendido/<int:id>')
 def soporte_atendido(id):
     if 'usuario_id' not in session or session.get('rol') != 'admin':
@@ -549,6 +551,21 @@ def eliminar_solicitud_reset(id):
     usuario.solicitud_reset = False
     db.session.commit()
     flash('Solicitud de restablecimiento eliminada.', 'info')
+    return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
+
+@app.route('/admin/actualizar_categoria/<int:id>', methods=['POST'])
+def actualizar_categoria(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    nueva_categoria = request.form.get('categoria')
+    
+    if nueva_categoria in ['Supercliente', 'Cliente', 'Otros']:
+        usuario.categoria = nueva_categoria
+        db.session.commit()
+        flash(f'Categoría de {usuario.nombre} actualizada a {nueva_categoria}.', 'success')
+        
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/pasar_recargando/<int:id>')

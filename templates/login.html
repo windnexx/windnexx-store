@@ -6,7 +6,6 @@
         <div class="card shadow-lg border-secondary">
             <div class="card-body p-4">
                 <h3 class="card-title text-center mb-4 fw-bold text-primary">Iniciar Sesión</h3>
-                
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="mb-3">
                         <label class="form-label text-light">Correo Electrónico</label>
@@ -18,15 +17,12 @@
                     </div>
                     <button type="submit" class="btn btn-primary w-100 fw-bold py-2 mb-3">Ingresar</button>
                 </form>
-
                 <div class="d-flex justify-content-between text-small mt-2">
                     <a href="{{ url_for('register') }}" class="text-decoration-none text-info">Crear Cuenta</a>
                     <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none text-warning">¿Olvidé mi contraseña?</a>
                 </div>
-
                 <hr class="border-secondary my-4">
-                
-                <!-- Botón de Soporte que abre Modal con formulario -->
+                <!-- Botón de Soporte que abre Modal con formulario previo -->
                 <button type="button" class="btn btn-outline-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalSoporte">
                     <i class="bi bi-headset"></i> Soporte / Atención al Cliente
                 </button>
@@ -35,7 +31,7 @@
     </div>
 </div>
 
-<!-- Modal de Soporte -->
+<!-- Modal de Soporte con Formulario y Subida de Fotos -->
 <div class="modal fade" id="modalSoporte" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-light border-secondary">
