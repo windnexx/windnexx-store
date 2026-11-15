@@ -3,7 +3,6 @@
 {% block content %}
 <div class="row">
     
-    <!-- MENÚ LATERAL IZQUIERDO -->
     <div class="col-md-3 mb-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-dark text-white fw-bold py-3">
@@ -29,7 +28,6 @@
         </div>
     </div>
 
-    <!-- CONTENIDO PRINCIPAL (Derecha) -->
     <div class="col-md-9">
 
         {% if seccion == 'perfil' %}
@@ -191,7 +189,6 @@
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
                         
-                        <!-- FRAGMENTOS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -210,7 +207,6 @@
                             </div>
                         </div>
 
-                        <!-- CAJAS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -229,7 +225,6 @@
                             </div>
                         </div>
 
-                        <!-- PASES -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -248,7 +243,6 @@
                             </div>
                         </div>
 
-                        <!-- NUEVO PRODUCTO: DIAMANTES EN MANTENIMIENTO -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">MANTENIMIENTO</span>
@@ -405,7 +399,6 @@
                     <div class="alert alert-info border-secondary bg-dark text-light small">
                         Envía tus consultas, dudas o reportes de pago adjuntando capturas. Nuestro equipo te responderá rápidamente.
                     </div>
-                    <!-- RUTA CORREGIDA CON BARRA INICIAL -->
                     <form action="{{ url_for('enviar_soporte') }}" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="nombre" value="{{ usuario.nombre }}">
                         <input type="hidden" name="correo" value="{{ usuario.correo }}">
