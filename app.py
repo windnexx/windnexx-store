@@ -98,7 +98,7 @@ class Pedido(db.Model):
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
     solo_fecha = db.Column(db.String(20), default=lambda: hora_lima().strftime('%d/%m/%Y'))
 
-# Modelo para Mensajes de Soporte / Chat
+# Modelo para Mensajes de Soporte / Atención al Cliente
 class MensajeSoporte(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -214,11 +214,17 @@ def calcular_estadisticas_usuario(usuario_id):
 
     for p in pedidos_completados:
         m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
-        if m_frag: total_fragmentos += int(m_frag.group(1))
+        if m_frag:
+            total_fragmentos += int(m_frag.group(1))
+
         m_cajas = re.search(r'Cajas \(x(\d+)\)', p.detalle)
-        if m_cajas: total_cajas += int(m_cajas.group(1))
+        if m_cajas:
+            total_cajas += int(m_cajas.group(1))
+
         m_pases = re.search(r'Pases \(x(\d+)\)', p.detalle)
-        if m_pases: total_pases += int(m_pases.group(1))
+        if m_pases:
+            total_pases += int(m_pases.group(1))
+
         monto_total_comprado += (p.total + (p.descuento_aplicado or 0.0))
 
     fragmentos_equivalentes = int(round(monto_total_comprado / PRECIOS['Fragmentos']))
@@ -233,6 +239,7 @@ def login():
     if request.method == 'POST':
         correo = request.form.get('correo', '').strip().lower()
         password = request.form.get('password', '')
+        
         usuario = Usuario.query.filter_by(correo=correo).first()
         
         if usuario and check_password_hash(usuario.password, password):
@@ -243,6 +250,7 @@ def login():
             session['usuario_id'] = usuario.id
             session['nombre'] = usuario.nombre
             session['rol'] = usuario.rol
+            
             usuario.ultima_actividad = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None)
             db.session.commit()
             
@@ -275,21 +283,34 @@ def register():
         patrocinador = None
         if codigo_invitacion:
             patrocinador = Usuario.query.filter_by(codigo_referido=codigo_invitacion).first()
+            if not patrocinador:
+                flash('El código de referido ingresado no es válido.', 'warning')
 
         hashed_password = generate_password_hash(password)
+        
         temp_hash = os.urandom(3).hex().upper()
         nuevo_usuario = Usuario(
-            nombre=nombre, correo=correo, telefono=telefono, password=hashed_password,
-            rol='cliente', confirmado=False, categoria='Cliente', rango='Bronce',
+            nombre=nombre,
+            correo=correo,
+            telefono=telefono,
+            password=hashed_password,
+            rol='cliente',
+            confirmado=False,
+            categoria='Cliente',
+            rango='Bronce',
             referido_por_id=patrocinador.id if patrocinador else None,
             codigo_referido=f"WIND-TEMP-{temp_hash}"
         )
+        
         db.session.add(nuevo_usuario)
         db.session.commit()
         
         nuevo_usuario.codigo_referido = f"WIND-{nuevo_usuario.id}-{os.urandom(2).hex().upper()}"
+        
         if patrocinador:
-            db.session.add(RegistroReferido(patrocinador_id=patrocinador.id, referido_id=nuevo_usuario.id))
+            nuevo_registro = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=nuevo_usuario.id)
+            db.session.add(nuevo_registro)
+            
         db.session.commit()
         
         flash('Registro exitoso. Un administrador debe aprobar tu cuenta antes de iniciar sesión.', 'success')
@@ -297,6 +318,7 @@ def register():
         
     return render_template('register.html')
 
+# NUEVA RUTA PARA PROCESAR EL SOPORTE Y FOTOS DESDE EL CLIENTE O LOGIN
 @app.route('/soporte/enviar', methods=['POST'])
 def enviar_soporte():
     nombre = request.form.get('nombre', '').strip()
@@ -328,21 +350,23 @@ def recuperar_password():
     if request.method == 'POST':
         correo = request.form.get('correo', '').strip().lower()
         telefono = request.form.get('telefono', '').strip()
+        
         usuario = Usuario.query.filter_by(correo=correo, telefono=telefono).first()
         if usuario:
             usuario.solicitud_reset = True
             db.session.commit()
-            flash('Solicitud enviada con éxito.', 'success')
+            flash('Solicitud enviada con éxito. El administrador revisará tus datos para restablecer tu contraseña.', 'success')
             return redirect(url_for('login'))
         else:
-            flash('Datos incorrectos.', 'danger')
+            flash('El correo y el número de teléfono no coinciden con ningún registro.', 'danger')
             return redirect(url_for('recuperar_password'))
+            
     return render_template('recuperar.html')
 
 @app.route('/admin')
 def admin_panel():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
-        flash('Acceso restringido.', 'danger')
+        flash('Acceso restringido para administradores.', 'danger')
         return redirect(url_for('login'))
         
     seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
@@ -361,21 +385,39 @@ def admin_panel():
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
+    
     hoy_str = hora_lima().strftime('%d/%m/%Y')
     historial_envios = Pedido.query.filter_by(estado='Completado').order_by(Pedido.id.desc()).all()
+    
     pedidos_hoy = [p for p in historial_envios if getattr(p, 'solo_fecha', hoy_str) == hoy_str]
+    
+    historicos_agrupados = {}
+    for p in historial_envios:
+        fecha_item = getattr(p, 'solo_fecha', hoy_str)
+        if fecha_item != hoy_str:
+            if fecha_item not in historicos_agrupados:
+                historicos_agrupados[fecha_item] = []
+            historicos_agrupados[fecha_item].append(p)
     
     return render_template(
         'admin.html', 
-        pendientes=usuarios_pendientes, confirmados=usuarios_confirmados,
-        solicitudes_reset=solicitudes_reset, codigos_promo=codigos_promo,
-        registros_referidos=registros_referidos, config_referido=config_referido,
+        pendientes=usuarios_pendientes, 
+        confirmados=usuarios_confirmados,
+        solicitudes_reset=solicitudes_reset,
+        codigos_promo=codigos_promo,
+        registros_referidos=registros_referidos,
+        config_referido=config_referido,
         mensajes_soporte=mensajes_soporte,
-        pedidos_validacion=pedidos_validacion, pedidos_recargando=pedidos_recargando,
-        historial_envios=historial_envios, pedidos_hoy=pedidos_hoy,
-        seccion=seccion_admin, Usuario=Usuario
+        pedidos_validacion=pedidos_validacion,
+        pedidos_recargando=pedidos_recargando,
+        historial_envios=historial_envios,
+        pedidos_hoy=pedidos_hoy,
+        historicos_agrupados=historicos_agrupados,
+        seccion=seccion_admin,
+        Usuario=Usuario
     )
 
+# RUTA PARA MARCAR SOPORTE COMO ATENDIDO
 @app.route('/admin/soporte/atendido/<int:id>')
 def soporte_atendido(id):
     if 'usuario_id' not in session or session.get('rol') != 'admin':
@@ -388,252 +430,539 @@ def soporte_atendido(id):
 
 @app.route('/admin/actualizar_config_referido', methods=['POST'])
 def actualizar_config_referido():
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    
     try:
-        config = ConfiguracionReferido.query.first() or ConfiguracionReferido()
-        config.descuento_porcentaje = float(request.form.get('descuento_referido', 6.0))
-        config.nombre_premio = request.form.get('nombre_premio', '').strip()
-        db.session.add(config)
+        nuevo_descuento = float(request.form.get('descuento_referido', 6.0))
+        nombre_premio = request.form.get('nombre_premio', 'Cupón de Recompensa de Referido').strip()
+        
+        config = ConfiguracionReferido.query.first()
+        if not config:
+            config = ConfiguracionReferido()
+            db.session.add(config)
+            
+        config.descuento_porcentaje = nuevo_descuento
+        config.nombre_premio = nombre_premio
         db.session.commit()
-        flash('Configuración actualizada.', 'success')
+        flash('Configuración del premio de referidos actualizada exitosamente.', 'success')
     except ValueError:
-        flash('Valor inválido.', 'danger')
+        flash('Valor de descuento inválido.', 'danger')
+        
     return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/admin/crear_codigo', methods=['POST'])
 def crear_codigo():
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    
     codigo = request.form.get('codigo', '').strip().upper()
-    try: descuento = float(request.form.get('descuento', 0))
-    except ValueError: descuento = 0
-    if codigo and descuento > 0 and not CodigoPromo.query.filter_by(codigo=codigo).first():
-        db.session.add(CodigoPromo(codigo=codigo, descuento_porcentaje=descuento, tipo_limite=request.form.get('tipo_limite', 'ilimitado'), max_usos_primeras=int(request.form.get('max_usos_primeras', 0))))
-        db.session.commit()
-        flash('Código creado.', 'success')
+    try:
+        descuento = float(request.form.get('descuento', 0))
+    except ValueError:
+        descuento = 0
+        
+    tipo_limite = request.form.get('tipo_limite', 'ilimitado')
+    try:
+        max_usos_primeras = int(request.form.get('max_usos_primeras', 0))
+    except ValueError:
+        max_usos_primeras = 0
+    
+    if codigo and descuento > 0:
+        if not CodigoPromo.query.filter_by(codigo=codigo).first():
+            nuevo_cp = CodigoPromo(
+                codigo=codigo, 
+                descuento_porcentaje=descuento,
+                tipo_limite=tipo_limite,
+                max_usos_primeras=max_usos_primeras,
+                usos_actuales=0,
+                es_premio_referido=False
+            )
+            db.session.add(nuevo_cp)
+            db.session.commit()
+            flash(f'Código promocional {codigo} creado con éxito.', 'success')
+        else:
+            flash('El código ya existe.', 'danger')
     else:
-        flash('Error al crear código.', 'danger')
+        flash('Datos inválidos para el código promocional.', 'danger')
     return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/admin/eliminar_codigo/<int:id>')
 def eliminar_codigo(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    db.session.delete(CodigoPromo.query.get_or_404(id))
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    cp = CodigoPromo.query.get_or_404(id)
+    db.session.delete(cp)
     db.session.commit()
+    flash('Código promocional eliminado.', 'info')
     return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/api/verificar-alertas')
 def verificar_alertas():
     try:
+        total_pedidos = Pedido.query.count()
+        total_usuarios = Usuario.query.count()
+        ultimo_pedido = Pedido.query.order_by(Pedido.id.desc()).first()
+        ultimo_usuario = Usuario.query.order_by(Usuario.id.desc()).first()
+        
         return jsonify({
-            "total_pedidos": Pedido.query.count(),
-            "total_usuarios": Usuario.query.count()
+            "total_pedidos": total_pedidos,
+            "total_usuarios": total_usuarios,
+            "ultimo_pedido_id": ultimo_pedido.id if ultimo_pedido else 0,
+            "ultimo_usuario_id": ultimo_usuario.id if ultimo_usuario else 0
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/admin/confirmar/<int:id>')
 def confirmar_usuario(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    u = Usuario.query.get_or_404(id)
-    u.confirmado = True
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    usuario.confirmado = True
     db.session.commit()
+    flash(f'El usuario {usuario.nombre} ha sido confirmado exitosamente.', 'success')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/restablecer_password/<int:id>', methods=['POST'])
 def restablecer_password(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    u = Usuario.query.get_or_404(id)
-    np = request.form.get('nueva_password', '').strip()
-    if np:
-        u.password = generate_password_hash(np)
-        u.solicitud_reset = False
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    nueva_pass = request.form.get('nueva_password', '').strip()
+    
+    if nueva_pass:
+        usuario.password = generate_password_hash(nueva_pass)
+        usuario.solicitud_reset = False
         db.session.commit()
-        flash('Contraseña restablecida.', 'success')
+        flash(f'Contraseña restablecida correctamente para {usuario.correo}.', 'success')
+    else:
+        flash('Debes ingresar una contraseña válida.', 'danger')
+        
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/eliminar_solicitud_reset/<int:id>')
 def eliminar_solicitud_reset(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    u = Usuario.query.get_or_404(id)
-    u.solicitud_reset = False
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    usuario = Usuario.query.get_or_404(id)
+    usuario.solicitud_reset = False
     db.session.commit()
+    flash('Solicitud de restablecimiento eliminada.', 'info')
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/actualizar_categoria/<int:id>', methods=['POST'])
 def actualizar_categoria(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    u = Usuario.query.get_or_404(id)
-    u.categoria = request.form.get('categoria')
-    db.session.commit()
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    nueva_categoria = request.form.get('categoria')
+    
+    if nueva_categoria in ['Supercliente', 'Cliente', 'Otros']:
+        usuario.categoria = nueva_categoria
+        db.session.commit()
+        flash(f'Categoría de {usuario.nombre} actualizada a {nueva_categoria}.', 'success')
+        
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/pasar_recargando/<int:id>')
 def pasar_recargando(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    p = Pedido.query.get_or_404(id)
-    p.estado = 'Recargando'
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    pedido = Pedido.query.get_or_404(id)
+    pedido.estado = 'Recargando'
     db.session.commit()
+    flash(f'Pago validado para el pedido #{pedido.id}. Estado cambiado a "Recargando".', 'success')
     return redirect(url_for('admin_panel', seccion='pedidos_recargando'))
 
 @app.route('/admin/completar_recarga/<int:id>')
 def completar_recarga(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    p = Pedido.query.get_or_404(id)
-    p.estado = 'Completado'
-    h = hora_lima()
-    p.solo_fecha = h.strftime('%d/%m/%Y')
-    p.fecha = h.strftime('%d/%m/%Y %H:%M')
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    pedido = Pedido.query.get_or_404(id)
+    pedido.estado = 'Completado'
+    h_lima = hora_lima()
+    pedido.solo_fecha = h_lima.strftime('%d/%m/%Y')
+    pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
+
+    cliente_pedido = Usuario.query.get(pedido.usuario_id)
+    if cliente_pedido and cliente_pedido.referido_por_id:
+        _, _, _, frag_equiv_total = calcular_estadisticas_usuario(cliente_pedido.id)
+        if frag_equiv_total >= 1456:
+            reg_ref = RegistroReferido.query.filter_by(patrocinador_id=cliente_pedido.referido_por_id, referido_id=cliente_pedido.id).first()
+            if reg_ref and not reg_ref.meta_cumplida:
+                reg_ref.meta_cumplida = True
+                db.session.commit()
+
+                patrocinador = Usuario.query.get(cliente_pedido.referido_por_id)
+                if patrocinador:
+                    config_ref = ConfiguracionReferido.query.first()
+                    porcentaje_premio = config_ref.descuento_porcentaje if config_ref else 6.0
+                    
+                    codigo_personal = f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}"
+                    existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
+                    if not existe_cupon:
+                        nuevo_cupon_ref = CodigoPromo(
+                            codigo=codigo_personal,
+                            descuento_porcentaje=porcentaje_premio,
+                            tipo_limite='una_por_cuenta',
+                            es_premio_referido=True,
+                            propietario_id=patrocinador.id
+                        )
+                        db.session.add(nuevo_cupon_ref)
+                        db.session.commit()
+
+    flash(f'Recarga completada para el pedido #{pedido.id}. Movido al historial.', 'success')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
 
 @app.route('/admin/eliminar_pedido/<int:id>')
 def eliminar_pedido(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    db.session.delete(Pedido.query.get_or_404(id))
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    pedido = Pedido.query.get_or_404(id)
+    db.session.delete(pedido)
     db.session.commit()
+    flash(f'El pedido #{pedido.id} ha sido eliminado.', 'info')
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/vaciar_historial_hoy')
 def vaciar_historial_hoy():
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    hoy = hora_lima().strftime('%d/%m/%Y')
-    for p in Pedido.query.filter_by(estado='Completado', solo_fecha=hoy).all():
-        p.solo_fecha = f"Archivado ({hoy})"
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    hoy_str = hora_lima().strftime('%d/%m/%Y')
+    pedidos_hoy = Pedido.query.filter_by(estado='Completado', solo_fecha=hoy_str).all()
+    
+    for p in pedidos_hoy:
+        p.solo_fecha = "Archivado (" + hoy_str + ")"
+        
     db.session.commit()
+    flash('El historial de hoy ha sido vaciado y guardado en los paneles de archivo.', 'success')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
 
 @app.route('/admin/eliminar/<int:id>')
 def eliminar_usuario(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin': return redirect(url_for('login'))
-    u = Usuario.query.get_or_404(id)
-    if u.rol == 'admin': return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
-    db.session.delete(u)
-    db.session.commit()
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.get_or_404(id)
+    if usuario.rol == 'admin':
+        flash('No puedes eliminar cuentas de administrador.', 'danger')
+        return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
+        
+    try:
+        Pedido.query.filter_by(usuario_id=usuario.id).delete()
+        RegistroReferido.query.filter((RegistroReferido.patrocinador_id == usuario.id) | (RegistroReferido.referido_id == usuario.id)).delete()
+        UsoCodigoUsuario.query.filter_by(usuario_id=usuario.id).delete()
+        CodigoPromo.query.filter_by(propietario_id=usuario.id).delete()
+        Usuario.query.filter_by(referido_por_id=usuario.id).update({Usuario.referido_por_id: None})
+
+        db.session.delete(usuario)
+        db.session.commit()
+        
+        flash(f'El usuario {usuario.nombre} y todos sus datos asociados han sido eliminados.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error al eliminar el usuario: {str(e)}', 'danger')
+
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
-        flash('Inicia sesión.', 'warning')
+        flash('Por favor inicia sesión con una cuenta de cliente.', 'warning')
         return redirect(url_for('login'))
     
-    if 'carrito' not in session: session['carrito'] = []
-    if 'codigo_aplicado' not in session: session['codigo_aplicado'] = None; session['descuento_porcentaje'] = 0.0
+    if 'carrito' not in session:
+        session['carrito'] = []
+    if 'codigo_aplicado' not in session:
+        session['codigo_aplicado'] = None
+        session['descuento_porcentaje'] = 0.0
         
     seccion = request.args.get('seccion', 'catalogo')
+    
     codigo_pat = request.args.get('codigo_patrocinador', '').strip().upper()
     usuario_actual = db.session.get(Usuario, session['usuario_id'])
     
     if codigo_pat and not usuario_actual.referido_por_id:
-        pat = Usuario.query.filter_by(codigo_referido=codigo_pat).first()
-        if pat and pat.id != usuario_actual.id:
-            usuario_actual.referido_por_id = pat.id
-            db.session.add(RegistroReferido(patrocinador_id=pat.id, referido_id=usuario_actual.id))
+        patrocinador = Usuario.query.filter_by(codigo_referido=codigo_pat).first()
+        if patrocinador and patrocinador.id != usuario_actual.id:
+            usuario_actual.referido_por_id = patrocinador.id
+            nuevo_reg = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=usuario_actual.id)
+            db.session.add(nuevo_reg)
             db.session.commit()
-            flash('¡Vinculado con éxito!', 'success')
+            
+            _, _, _, frag_equiv_actual = calcular_estadisticas_usuario(usuario_actual.id)
+            if frag_equiv_actual >= 1456:
+                nuevo_reg.meta_cumplida = True
+                db.session.commit()
+                
+            flash('¡Te has vinculado exitosamente con el código de tu amigo!', 'success')
+        else:
+            flash('El código de patrocinador ingresado no es válido.', 'danger')
         return redirect(url_for('cliente_home', seccion='amigo_referidos'))
 
-    tp, tf, tc, puntos = calcular_estadisticas_usuario(usuario_actual.id)
-    meta = 5000
-    if puntos >= meta:
-        usuario_actual.rango = 'Plata'; prog = 100
+    total_pases, total_fragmentos, total_cajas, puntos_fragmentos = calcular_estadisticas_usuario(usuario_actual.id)
+    
+    meta_rango = 5000
+    if puntos_fragmentos >= meta_rango:
+        usuario_actual.rango = 'Plata'
+        progreso_porcentaje = 100
     else:
-        usuario_actual.rango = 'Bronce'; prog = int((puntos / meta) * 100)
+        usuario_actual.rango = 'Bronce'
+        progreso_porcentaje = int((puntos_fragmentos / meta_rango) * 100)
     db.session.commit()
 
-    mis_ref = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).all()
-    historial = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).all()
+    mis_referidos = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).all()
+    
+    for ref in mis_referidos:
+        if not ref.meta_cumplida:
+            _, _, _, f_eq = calcular_estadisticas_usuario(ref.referido_id)
+            if f_eq >= 1456:
+                ref.meta_cumplida = True
+                patrocinador = Usuario.query.get(ref.patrocinador_id)
+                if patrocinador:
+                    config_ref = ConfiguracionReferido.query.first()
+                    porcentaje_premio = config_ref.descuento_porcentaje if config_ref else 6.0
+                    
+                    existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
+                    if not existe_cupon:
+                        nuevo_cupon_ref = CodigoPromo(
+                            codigo=f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}",
+                            descuento_porcentaje=porcentaje_premio,
+                            tipo_limite='una_por_cuenta',
+                            es_premio_referido=True,
+                            propietario_id=patrocinador.id
+                        )
+                        db.session.add(nuevo_cupon_ref)
+    db.session.commit()
+
+    historial_compras = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).all()
         
-    tot = 0
-    calc = []
+    total_general = 0
+    carrito_calculado = []
     for item in session['carrito']:
-        sub = item['cantidad'] * PRECIOS.get(item['producto'], 0)
-        tot += sub
-        calc.append({'producto': item['producto'], 'cantidad': item['cantidad'], 'precio_unitario': PRECIOS.get(item['producto'], 0), 'subtotal': round(sub, 2)})
+        prod = item['producto']
+        cant = item['cantidad']
+        precio_unitario = PRECIOS.get(prod, 0)
+        subtotal = cant * precio_unitario
+        total_general += subtotal
+        carrito_calculado.append({
+            'producto': prod,
+            'cantidad': cant,
+            'precio_unitario': precio_unitario,
+            'subtotal': round(subtotal, 2)
+        })
         
-    desc_monto = tot * (session.get('descuento_porcentaje', 0) / 100.0) if session.get('descuento_porcentaje', 0) > 0 else 0.0
-    total_fin = max(0.0, tot - desc_monto)
+    descuento_monto = 0.0
+    if session.get('descuento_porcentaje', 0) > 0:
+        descuento_monto = total_general * (session['descuento_porcentaje'] / 100.0)
+        
+    total_final = max(0.0, total_general - descuento_monto)
         
     return render_template(
-        'cliente_home.html', nombre=session.get('nombre'), usuario=usuario_actual,
-        total_pases=tp, total_fragmentos=tf, total_cajas=tc,
-        progreso_porcentaje=prog, puntos_fragmentos=puntos, meta_rango=meta,
-        mis_referidos=mis_ref, Usuario=Usuario, CodigoPromo=CodigoPromo,
-        carrito=calc, total_general=round(tot, 2), descuento_monto=round(desc_monto, 2),
-        total_final=round(total_fin, 2), codigo_aplicado=session.get('codigo_aplicado'),
-        seccion=seccion, historial=historial
+        'cliente_home.html', 
+        nombre=session.get('nombre'), 
+        usuario=usuario_actual,
+        total_pases=total_pases,
+        total_fragmentos=total_fragmentos,
+        total_cajas=total_cajas,
+        progreso_porcentaje=progreso_porcentaje,
+        puntos_fragmentos=puntos_fragmentos,
+        meta_rango=meta_rango,
+        mis_referidos=mis_referidos,
+        Usuario=Usuario,
+        CodigoPromo=CodigoPromo,
+        carrito=carrito_calculado, 
+        total_general=round(total_general, 2),
+        descuento_monto=round(descuento_monto, 2),
+        total_final=round(total_final, 2),
+        codigo_aplicado=session.get('codigo_aplicado'),
+        seccion=seccion,
+        historial=historial_compras
     )
 
 @app.route('/cliente/agregar', methods=['POST'])
 def agregar_carrito():
-    if 'usuario_id' not in session or session.get('rol') != 'cliente': return redirect(url_for('login'))
-    prod = request.form.get('producto')
-    try: cant = max(1, int(request.form.get('cantidad', 1)))
-    except ValueError: cant = 1
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return redirect(url_for('login'))
+        
+    producto = request.form.get('producto')
+    try:
+        cantidad = int(request.form.get('cantidad', 1))
+        if cantidad < 1:
+            cantidad = 1
+    except ValueError:
+        cantidad = 1
     
-    if 'carrito' not in session: session['carrito'] = []
-    enc = False
-    for i in session['carrito']:
-        if i['producto'] == prod: i['cantidad'] += cant; enc = True; break
-    if not enc: session['carrito'].append({'producto': prod, 'cantidad': cant})
+    if 'carrito' not in session:
+        session['carrito'] = []
+        
+    carrito = session['carrito']
+    encontrado = False
+    for item in carrito:
+        if item['producto'] == producto:
+            item['cantidad'] += cantidad
+            encontrado = True
+            break
+            
+    if not encontrado:
+        carrito.append({'producto': producto, 'cantidad': cantidad})
+        
     session.modified = True
+    flash(f'Se agregaron {cantidad} de {producto} al carrito.', 'success')
     return redirect(url_for('cliente_home', seccion='catalogo'))
 
 @app.route('/cliente/aplicar_codigo', methods=['POST'])
 def aplicar_codigo():
-    if 'usuario_id' not in session or session.get('rol') != 'cliente': return redirect(url_for('login'))
-    cp = CodigoPromo.query.filter_by(codigo=request.form.get('codigo_promo', '').strip().upper()).first()
-    if cp:
-        session['codigo_aplicado'] = cp.codigo
-        session['descuento_porcentaje'] = cp.descuento_porcentaje
-        flash(f'¡Código {cp.codigo} aplicado!', 'success')
-    else:
-        flash('Código inválido.', 'danger')
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return redirect(url_for('login'))
+    
+    codigo_ingresado = request.form.get('codigo_promo', '').strip().upper()
+    cp = CodigoPromo.query.filter_by(codigo=codigo_ingresado).first()
+    
+    if not cp:
+        flash('Código promocional inválido o inexistente.', 'danger')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
+        
+    usuario_id = session['usuario_id']
+    
+    if cp.es_premio_referido and cp.propietario_id != usuario_id:
+        flash('Cupón inválido: este código de recompensa no te pertenece o aún no has completado la misión.', 'danger')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
+    
+    if cp.tipo_limite == 'una_por_cuenta':
+        ya_usado = UsoCodigoUsuario.query.filter_by(usuario_id=usuario_id, codigo_id=cp.id).first()
+        if ya_usado:
+            flash('Este código ya fue utilizado en tu cuenta. Solo se permite una vez por usuario.', 'danger')
+            return redirect(url_for('cliente_home', seccion='catalogo'))
+            
+    elif cp.tipo_limite == 'primeras_cuentas':
+        if cp.usos_actuales >= cp.max_usos_primeras:
+            flash(f'Este código ya alcanzó su límite máximo de uso ({cp.max_usos_primeras} cuentas).', 'danger')
+            return redirect(url_for('cliente_home', seccion='catalogo'))
+
+    session['codigo_aplicado'] = cp.codigo
+    session['descuento_porcentaje'] = cp.descuento_porcentaje
+    flash(f'¡Código promocional {cp.codigo} aplicado ({cp.descuento_porcentaje}% de descuento)!', 'success')
+        
     session.modified = True
     return redirect(url_for('cliente_home', seccion='catalogo'))
 
 @app.route('/cliente/preparar_pago', methods=['POST'])
 def preparar_pago():
-    if 'usuario_id' not in session or session.get('rol') != 'cliente': return redirect(url_for('login'))
-    jid = request.form.get('jugador_id', '').strip()
-    if not jid:
-        flash('Ingresa el ID.', 'danger')
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return redirect(url_for('login'))
+        
+    if not session.get('carrito'):
+        flash('Tu carrito está vacío.', 'warning')
+        return redirect(url_for('login'))
+        
+    jugador_id = request.form.get('jugador_id', '').strip()
+    if not jugador_id:
+        flash('Debes ingresar el ID de cuenta del jugador.', 'danger')
         return redirect(url_for('cliente_home', seccion='catalogo'))
-    session['jugador_id_temp'] = jid
+        
+    session['jugador_id_temp'] = jugador_id
     session.modified = True
+    
     return redirect(url_for('cliente_home', seccion='pago_yape'))
 
 @app.route('/cliente/pagar_yape', methods=['POST'])
 def pagar_yape():
-    if 'usuario_id' not in session or session.get('rol') != 'cliente': return redirect(url_for('login'))
-    tot = sum(i['cantidad'] * PRECIOS.get(i['producto'], 0) for i in session.get('carrito', []))
-    desc = tot * (session.get('descuento_porcentaje', 0.0) / 100.0)
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return redirect(url_for('login'))
+        
+    if not session.get('carrito') or not session.get('jugador_id_temp'):
+        flash('Sesión de pago expirada o carrito vacío.', 'warning')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
+        
+    telefono_digitos = request.form.get('telefono_digitos', '').strip()
+    codigo_operacion = request.form.get('codigo_operacion', '').strip()
     
-    np = Pedido(
-        usuario_id=session['usuario_id'], nombre_cliente=session['nombre'],
-        jugador_id=session.get('jugador_id_temp'),
-        detalle=", ".join([f"{i['producto']} (x{i['cantidad']})" for i in session['carrito']]),
-        total=round(max(0.0, tot - desc), 2),
-        telefono_digitos=request.form.get('telefono_digitos', ''),
-        codigo_operacion=request.form.get('codigo_operacion', ''),
-        codigo_promo=session.get('codigo_aplicado', ''), descuento_aplicado=round(desc, 2),
-        estado='Validación de pago', solo_fecha=hora_lima().strftime('%d/%m/%Y'),
-        fecha=hora_lima().strftime('%d/%m/%Y %H:%M')
+    if not telefono_digitos or not codigo_operacion:
+        flash('Debes ingresar los últimos 3 dígitos y el código de operación.', 'danger')
+        return redirect(url_for('cliente_home', seccion='pago_yape'))
+        
+    jugador_id = session['jugador_id_temp']
+    
+    total_general = 0
+    detalle_items = []
+    for item in session['carrito']:
+        sub = item['cantidad'] * PRECIOS.get(item['producto'], 0)
+        total_general += sub
+        detalle_items.append(f"{item['producto']} (x{item['cantidad']})")
+        
+    descuento_porc = session.get('descuento_porcentaje', 0.0)
+    descuento_monto = total_general * (descuento_porc / 100.0) if descuento_porc > 0 else 0.0
+    total_final = max(0.0, total_general - descuento_monto)
+        
+    detalle_texto = ", ".join(detalle_items)
+    h_lima = hora_lima()
+    
+    codigo_usado_str = session.get('codigo_aplicado')
+    if codigo_usado_str:
+        cp_obj = CodigoPromo.query.filter_by(codigo=codigo_usado_str).first()
+        if cp_obj:
+            cp_obj.usos_actuales += 1
+            if cp_obj.tipo_limite == 'una_por_cuenta':
+                nuevo_uso = UsoCodigoUsuario(usuario_id=session['usuario_id'], codigo_id=cp_obj.id)
+                db.session.add(nuevo_uso)
+            db.session.commit()
+
+    nuevo_pedido = Pedido(
+        usuario_id=session['usuario_id'],
+        nombre_cliente=session['nombre'],
+        jugador_id=jugador_id,
+        detalle=detalle_texto,
+        total=round(total_final, 2),
+        telefono_digitos=telefono_digitos,
+        codigo_operacion=codigo_operacion,
+        codigo_promo=session.get('codigo_aplicado', ''),
+        descuento_aplicado=round(descuento_monto, 2),
+        estado='Validación de pago',
+        solo_fecha=h_lima.strftime('%d/%m/%Y'),
+        fecha=h_lima.strftime('%d/%m/%Y %H:%M')
     )
-    db.session.add(np); db.session.commit()
-    session['carrito'] = []; session.pop('jugador_id_temp', None); session.pop('codigo_aplicado', None); session.pop('descuento_porcentaje', None)
+    
+    db.session.add(nuevo_pedido)
+    db.session.commit()
+    
+    session['carrito'] = []
+    session.pop('jugador_id_temp', None)
+    session.pop('codigo_aplicado', None)
+    session.pop('descuento_porcentaje', None)
     session.modified = True
-    flash('¡Pago registrado!', 'success')
+    
+    flash('¡Pago registrado! Su pedido se encuentra en "Validación de pago".', 'success')
     return redirect(url_for('cliente_home', seccion='historial'))
 
 @app.route('/cliente/vaciar')
 def vaciar_carrito():
-    session['carrito'] = []; session.modified = True
+    session['carrito'] = []
+    session.pop('jugador_id_temp', None)
+    session.pop('codigo_aplicado', None)
+    session.pop('descuento_porcentaje', None)
+    session.modified = True
+    flash('El carrito ha sido vaciado.', 'info')
     return redirect(url_for('cliente_home', seccion='catalogo'))
 
 @app.route('/logout')
 def logout():
+    if 'usuario_id' in session:
+        usuario = db.session.get(Usuario, session['usuario_id'])
+        if usuario:
+            usuario.ultima_actividad = None
+            db.session.commit()
     session.clear()
+    flash('Has cerrado sesión correctamente.', 'info')
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
