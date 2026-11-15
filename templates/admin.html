@@ -35,7 +35,7 @@
                     🎟️ Códigos y Publicidad <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
-                    👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ pendientes|length + solicitudes_reset|length }}</span>
+                    👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ solicitudes_reset|length }}</span>
                 </a>
                 <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-danger fw-bold mt-3 border-top">
                     🚪 Cerrar Sesión
@@ -128,7 +128,6 @@
                                             {% else %}
                                                 <span class="text-secondary small me-1">Completado</span>
                                             {% endif %}
-                                            <!-- BOTÓN X PARA ELIMINAR EL MENSAJE -->
                                             <a href="{{ url_for('eliminar_soporte', id=msj.id) }}" class="btn btn-sm btn-danger fw-bold" title="Eliminar mensaje" onclick="return confirm('¿Estás seguro de eliminar este mensaje?')">✕</a>
                                         </td>
                                     </tr>
@@ -173,7 +172,6 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <!-- HISTORIAL DE HOY -->
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📋 Historial de Envíos Realizados (Hoy)</span>
@@ -216,7 +214,6 @@
                 </div>
             </div>
 
-            <!-- ARCHIVO HISTÓRICO EN ACORDEÓN POR FECHAS -->
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-dark text-white fw-bold">📁 Archivo Histórico de Días Anteriores (Haz clic en una fecha para ver)</div>
                 <div class="card-body">
@@ -321,7 +318,6 @@
 
                     <hr class="border-secondary my-4">
 
-                    <!-- GESTIÓN DE PUBLICIDAD PARA EL CLIENT HOME -->
                     <h6 class="fw-bold text-light mb-2">📢 Anuncio de Publicidad (Inicio del Cliente)</h6>
                     <form action="{{ url_for('actualizar_publicidad') }}" method="POST" class="p-3 bg-light rounded border mb-4">
                         <div class="mb-3">
@@ -352,42 +348,6 @@
             </div>
 
         {% elif seccion == 'gestion_usuarios' %}
-
-            <div class="card shadow-sm border-warning mb-4">
-                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                    <span>⏳ Solicitudes de Registro Pendientes</span>
-                    <span class="badge bg-dark text-white">{{ pendientes|length }} pendientes</span>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 small">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Correo</th>
-                                    <th>Teléfono</th>
-                                    <th class="text-end">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for p in pendientes %}
-                                <tr>
-                                    <td class="fw-semibold">{{ p.nombre }}</td>
-                                    <td>{{ p.correo }}</td>
-                                    <td>{{ p.telefono or 'No registrado' }}</td>
-                                    <td class="text-end">
-                                        <a href="{{ url_for('confirmar_usuario', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1">✓ Aceptar</a>
-                                        <a href="{{ url_for('eliminar_usuario', id=p.id) }}" class="btn btn-sm btn-danger">✕ Rechazar</a>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr><td colspan="4" class="text-center py-3 text-secondary">No hay solicitudes de registro pendientes.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
 
             <div class="card shadow-sm border-info mb-4">
                 <div class="card-header bg-info text-dark fw-bold d-flex justify-content-between align-items-center">

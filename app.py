@@ -9,6 +9,10 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy import text
 
+# Importaciones para Google OAuth y Enlaces Seguros de Correo
+from authlib.integrations.flask_client import OAuth
+from itsdangerous import URLSafeTimedSerializer
+
 # Intentar importar pandas para excel, sino continuar sin él de forma segura
 try:
     import pandas as pd
@@ -17,7 +21,22 @@ except ImportError:
     EXCEL_DISPONIBLE = False
 
 app = Flask(__name__)
-app.secret_key = 'clave_secreta_windnexx_desarrollo'
+app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_windnexx_desarrollo')
+
+# Configuración de Google OAuth
+app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET')
+
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=app.config['GOOGLE_CLIENT_ID'],
+    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
+
+serializer = URLSafeTimedSerializer(app.secret_key)
 
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -43,15 +62,17 @@ TIMEZONE_LIMA = ZoneInfo("America/Lima")
 def hora_lima():
     return datetime.now(TIMEZONE_LIMA)
 
-# Modelo de Usuario
+# Modelo de Usuario Actualizado (password opcional para Google y campos de verificación)
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     correo = db.Column(db.String(100), unique=True, nullable=False)
     telefono = db.Column(db.String(20), nullable=True, default='')
-    password = db.Column(db.String(200), nullable=False)
+    password = db.Column(db.String(200), nullable=True) # Opcional para cuentas de Google
+    google_id = db.Column(db.String(100), unique=True, nullable=True)
+    correo_verificado = db.Column(db.Boolean, default=False)
     rol = db.Column(db.String(20), default='cliente')
-    confirmado = db.Column(db.Boolean, default=False)
+    confirmado = db.Column(db.Boolean, default=True) # Activado automáticamente por Google o Enlace
     categoria = db.Column(db.String(20), default='Cliente')
     solicitud_reset = db.Column(db.Boolean, default=False)
     ultima_actividad = db.Column(db.DateTime, nullable=True)
@@ -148,6 +169,7 @@ with app.app_context():
             password=generate_password_hash('2244Nexxxx'),
             rol='admin',
             confirmado=True,
+            correo_verificado=True,
             categoria='Supercliente',
             codigo_referido='WIND-ADMIN-1'
         )
@@ -162,6 +184,7 @@ with app.app_context():
             password=generate_password_hash('masterkeyne9999'),
             rol='admin',
             confirmado=True,
+            correo_verificado=True,
             categoria='Supercliente',
             codigo_referido='WIND-ADMIN-2'
         )
@@ -236,6 +259,110 @@ def calcular_estadisticas_usuario(usuario_id):
 def index():
     return redirect(url_for('login'))
 
+# --- RUTAS DE GOOGLE OAUTH ---
+@app.route('/login/google')
+def login_google():
+    redirect_uri = url_for('google_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/login/google/callback')
+def google_callback():
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo')
+        if not user_info:
+            user_info = google.get('https://www.googleapis.com/oauth2/v3/userinfo').json()
+            
+        correo = user_info.get('email').lower()
+        nombre = user_info.get('name', 'Usuario Google')
+        google_id = user_info.get('sub')
+
+        usuario = Usuario.query.filter_by(correo=correo).first()
+        
+        if usuario:
+            if not usuario.google_id:
+                usuario.google_id = google_id
+                usuario.correo_verificado = True
+                db.session.commit()
+            
+            session['usuario_id'] = usuario.id
+            session['nombre'] = usuario.nombre
+            session['correo'] = usuario.correo
+            session['rol'] = usuario.rol
+            
+            if usuario.rol == 'admin':
+                return redirect(url_for('admin_panel'))
+            else:
+                return redirect(url_for('cliente_home'))
+        else:
+            session['google_temp'] = {'correo': correo, 'nombre': nombre, 'google_id': google_id}
+            return redirect(url_for('completar_registro_google'))
+            
+    except Exception as e:
+        flash(f'Error al autenticar con Google: {str(e)}', 'danger')
+        return redirect(url_for('login'))
+
+@app.route('/completar-registro-google', methods=['GET', 'POST'])
+def completar_registro_google():
+    if 'google_temp' not in session:
+        return redirect(url_for('login'))
+        
+    datos_google = session['google_temp']
+    
+    if request.method == 'POST':
+        telefono = request.form.get('telefono', '').strip()
+        password = request.form.get('password', '')
+        codigo_invitacion = request.form.get('codigo_invitacion', '').strip().upper()
+        
+        if not password or not telefono:
+            flash('El teléfono y la contraseña son obligatorios.', 'danger')
+            return redirect(url_for('completar_registro_google'))
+            
+        patrocinador = None
+        if codigo_invitacion:
+            patrocinador = Usuario.query.filter_by(codigo_referido=codigo_invitacion).first()
+            if not patrocinador:
+                flash('El código de referido ingresado no es válido.', 'warning')
+
+        hashed_password = generate_password_hash(password)
+        temp_hash = os.urandom(3).hex().upper()
+        
+        nuevo_usuario = Usuario(
+            nombre=datos_google['nombre'],
+            correo=datos_google['correo'],
+            telefono=telefono,
+            password=hashed_password,
+            google_id=datos_google['google_id'],
+            correo_verificado=True,
+            confirmado=True,
+            rol='cliente',
+            categoria='Cliente',
+            rango='Bronce',
+            referido_por_id=patrocinador.id if patrocinador else None,
+            codigo_referido=f"WIND-TEMP-{temp_hash}"
+        )
+        
+        db.session.add(nuevo_usuario)
+        db.session.commit()
+        nuevo_usuario.codigo_referido = f"WIND-{nuevo_usuario.id}-{os.urandom(2).hex().upper()}"
+        
+        if patrocinador:
+            nuevo_registro = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=nuevo_usuario.id)
+            db.session.add(nuevo_registro)
+            
+        db.session.commit()
+        
+        session.pop('google_temp', None)
+        session['usuario_id'] = nuevo_usuario.id
+        session['nombre'] = nuevo_usuario.nombre
+        session['correo'] = nuevo_usuario.correo
+        session['rol'] = nuevo_usuario.rol
+        
+        flash('¡Cuenta creada y verificada con éxito mediante Google!', 'success')
+        return redirect(url_for('cliente_home'))
+        
+    return render_template('completar_registro_google.html', correo=datos_google['correo'], nombre=datos_google['nombre'])
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -244,9 +371,9 @@ def login():
         
         usuario = Usuario.query.filter_by(correo=correo).first()
         
-        if usuario and check_password_hash(usuario.password, password):
-            if not usuario.confirmado:
-                flash('Tu cuenta aún no ha sido aprobada por el administrador.', 'warning')
+        if usuario and usuario.password and check_password_hash(usuario.password, password):
+            if not usuario.correo_verificado:
+                flash('Debes verificar tu correo electrónico haciendo clic en el enlace que te enviamos.', 'warning')
                 return redirect(url_for('login'))
             
             session['usuario_id'] = usuario.id
@@ -298,7 +425,8 @@ def register():
             telefono=telefono,
             password=hashed_password,
             rol='cliente',
-            confirmado=False,
+            correo_verificado=False, # Se verifica mediante el enlace
+            confirmado=True,
             categoria='Cliente',
             rango='Bronce',
             referido_por_id=patrocinador.id if patrocinador else None,
@@ -316,10 +444,33 @@ def register():
             
         db.session.commit()
         
-        flash('Registro exitoso. Un administrador debe aprobar tu cuenta antes de iniciar sesión.', 'success')
+        # Generar token de verificación por correo
+        token = serializer.dumps(correo, salt='email-verification-salt')
+        enlace_verificacion = url_for('verificar_correo', token=token, _external=True)
+        print(f"--- ENLACE DE VERIFICACIÓN PARA {correo}: {enlace_verificacion} ---")
+        
+        flash('Registro exitoso. Revisa tu correo electrónico para activar tu cuenta.', 'success')
         return redirect(url_for('login'))
         
     return render_template('register.html')
+
+@app.route('/verificar-correo/<token>')
+def verificar_correo(token):
+    try:
+        correo = serializer.loads(token, salt='email-verification-salt', max_age=86400)
+    except Exception:
+        flash('El enlace de verificación es inválido o ha expirado.', 'danger')
+        return redirect(url_for('login'))
+        
+    usuario = Usuario.query.filter_by(correo=correo).first()
+    if usuario:
+        usuario.correo_verificado = True
+        db.session.commit()
+        flash('¡Correo verificado y cuenta activada con éxito! Ya puedes iniciar sesión.', 'success')
+    else:
+        flash('Usuario no encontrado.', 'danger')
+        
+    return redirect(url_for('login'))
 
 @app.route('/soporte/enviar', methods=['POST'])
 def enviar_soporte():
@@ -392,7 +543,7 @@ def admin_panel():
         
     seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
     
-    usuarios_pendientes = Usuario.query.filter_by(confirmado=False, solicitud_reset=False).all()
+    # Cuentas activas confirmadas
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').order_by(Usuario.ultima_actividad.desc().nullslast()).all()
     
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
@@ -443,7 +594,7 @@ def admin_panel():
     
     return render_template(
         'admin.html', 
-        pendientes=usuarios_pendientes, 
+        pendientes=[], # Solicitudes manuales eliminadas al automatizar con enlaces y Google
         confirmados=usuarios_confirmados,
         solicitudes_reset=solicitudes_reset,
         codigos_promo=codigos_promo,
