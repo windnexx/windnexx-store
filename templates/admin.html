@@ -21,7 +21,7 @@
             </div>
             <div class="list-group list-group-flush">
                 <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_pendientes' %}active fw-bold{% endif %}">
-                    📦 Pedidos Pendientes <span id="badge-pendientes" class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
+                    📦 Pedidos Pendientes <span class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_recargando' %}active fw-bold{% endif %}">
                     ⚡ Recargando <span class="badge bg-warning text-dark float-end">{{ pedidos_recargando|length }}</span>
@@ -29,11 +29,14 @@
                 <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action {% if seccion == 'historial_envios' %}active fw-bold{% endif %}">
                     📋 Historial de Envíos Realizados
                 </a>
+                <a href="{{ url_for('admin_panel', seccion='soporte') }}" class="list-group-item list-group-item-action {% if seccion == 'soporte' %}active fw-bold{% endif %}">
+                    🎧 Mensajes de Soporte <span class="badge bg-danger float-end">{{ mensajes_soporte | selectattr('estado', 'equalto', 'Pendiente') | list | length }}</span>
+                </a>
                 <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action {% if seccion == 'codigos_promo' %}active fw-bold{% endif %}">
                     🎟️ Códigos y Referidos <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
-                    👥 Gestión de Usuarios <span id="badge-usuarios" class="badge bg-secondary float-end">{{ pendientes|length + solicitudes_reset|length }}</span>
+                    👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ pendientes|length + solicitudes_reset|length }}</span>
                 </a>
                 <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-danger fw-bold mt-3 border-top">
                     🚪 Cerrar Sesión
@@ -54,67 +57,110 @@
                 <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador</th><th>Total</th><th>Descuento / Promo</th><th>Últimos 3 dígitos</th><th>Nro. Operación</th><th class="text-end">Acciones</th></tr>
+                            <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador</th><th>Total</th><th>Descuento / Promo</th><th>Teléfono</th><th>Operación</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
+                            {% for p in pedidos_pendientes %} <!-- fallback -->
+                            {% endfor %}
                             {% for p in pedidos_validacion %}
                             <tr>
                                 <td>{{ p.fecha }}</td>
                                 <td class="fw-bold">{{ p.nombre_cliente }}</td>
                                 <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
                                 <td class="fw-bold text-success">S/ {{ p.total }}</td>
-                                <td>
-                                    {% if p.codigo_promo %}
-                                        <span class="badge bg-info text-dark">{{ p.codigo_promo }} (-S/{{ p.descuento_aplicado }})</span>
-                                    {% else %}
-                                        <span class="text-muted">Ninguno</span>
-                                    {% endif %}
-                                </td>
-                                <td><span class="badge bg-secondary">{{ p.telefono_digitos }}</span></td>
+                                <td>{{ p.codigo_promo or 'Ninguno' }}</td>
+                                <td>{{ p.telefono_digitos }}</td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1" onclick="return confirm('¿Validar pago y pasar a estado Recargando?')">✓ Validar</a>
-                                    <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este pedido pendiente?');" title="Eliminar pedido">🗑️</a>
+                                    <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1">✓ Validar</a>
+                                    <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger">🗑️</a>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="8" class="text-center py-4 text-muted">No hay pagos pendientes por validar.</td></tr>
+                            <tr><td colspan="8" class="text-center py-4 text-muted">No hay pagos pendientes.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
 
+        {% elif seccion == 'soporte' %}
+            <!-- NUEVA SECCIÓN: BANDEJA DE ENTRADA DE SOPORTE -->
+            <div class="card border-secondary">
+                <div class="card-header fw-bold bg-primary text-white">🎧 Bandeja de Entrada de Soporte y Chats</div>
+                <div class="card-body">
+                    {% if mensajes_soporte %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Usuario / Contacto</th>
+                                        <th>Mensaje</th>
+                                        <th>Adjunto</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for msj in mensajes_soporte %}
+                                    <tr>
+                                        <td>{{ msj.fecha }}</td>
+                                        <td>
+                                            <strong>{{ msj.nombre }}</strong><br>
+                                            <small class="text-muted">{{ msj.correo }} | Tel: {{ msj.telefono }}</small>
+                                        </td>
+                                        <td>{{ msj.mensaje }}</td>
+                                        <td>
+                                            {% if msj.imagen %}
+                                                <a href="{{ url_for('static', filename='uploads/' + msj.imagen) }}" target="_blank" class="btn btn-outline-info btn-sm">Ver Foto</a>
+                                            {% else %}
+                                                <span class="text-muted">Sin foto</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ 'bg-success' if msj.estado == 'Atendido' else 'bg-warning text-dark' }}">{{ msj.estado }}</span>
+                                        </td>
+                                        <td>
+                                            {% if msj.estado == 'Pendiente' %}
+                                                <a href="{{ url_for('soporte_atendido', id=msj.id) }}" class="btn btn-success btn-sm">Marcar Atendido</a>
+                                            {% else %}
+                                                <span class="text-muted small">Completado</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-center text-muted py-4">No hay mensajes de soporte pendientes.</p>
+                    {% endif %}
+                </div>
+            </div>
+
         {% elif seccion == 'pedidos_recargando' %}
             <div class="card shadow-sm border-warning">
-                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
-                    <span>⚡ Pedidos en Proceso de Recarga</span>
-                    <span class="badge bg-dark text-white">{{ pedidos_recargando|length }} recargando</span>
-                </div>
+                <div class="card-header bg-warning text-dark fw-bold">⚡ Pedidos en Proceso de Recarga</div>
                 <div class="card-body p-0">
                     <table class="table table-hover align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador (Clic para copiar)</th><th>Detalle</th><th>Nro. Operación</th><th class="text-end">Acciones</th></tr>
+                            <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador</th><th>Detalle</th><th>Operación</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             {% for p in pedidos_recargando %}
                             <tr>
                                 <td>{{ p.fecha }}</td>
                                 <td class="fw-bold">{{ p.nombre_cliente }}</td>
-                                <td>
-                                    <span class="badge bg-dark text-white px-2 py-1" style="cursor: pointer; font-size: 13px;" onclick="copiarTexto('{{ p.jugador_id }}', this)" title="Haz clic para copiar">
-                                        <i class="bi bi-clipboard"></i> {{ p.jugador_id }}
-                                    </span>
-                                </td>
-                                <td class="fw-semibold text-dark">{{ p.detalle }}</td>
+                                <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                <td>{{ p.detalle }}</td>
                                 <td><code>{{ p.codigo_operacion }}</code></td>
                                 <td class="text-end">
-                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold me-1" onclick="return confirm('¿Confirmar que la recarga ha finalizado?')">🚀 Completar</a>
-                                    <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este pedido en recarga?');" title="Eliminar pedido">🗑️</a>
+                                    <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold">🚀 Completar</a>
                                 </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="6" class="text-center py-4 text-muted">No hay recargas en curso actualmente.</td></tr>
+                            <tr><td colspan="6" class="text-center py-4 text-muted">No hay recargas en curso.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -122,32 +168,25 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <div class="card shadow-sm border-success mb-4">
-                <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
-                    <span>📋 Historial de Envíos Realizados (Ventas de Hoy)</span>
-                    <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-warning btn-sm fw-bold text-dark" onclick="return confirm('¿Vaciar las ventas de hoy y enviarlas al archivo histórico lateral?');">🧹 Vaciar Historial de Hoy</a>
-                </div>
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white fw-bold">📋 Historial de Envíos Realizados</div>
                 <div class="card-body p-0">
                     <table class="table table-striped align-middle mb-0 small">
                         <thead class="table-light">
-                            <tr><th>Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th>Teléfono (3 dig)</th><th>Operación Yape</th><th class="text-end">Acciones</th></tr>
+                            <tr><th>Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th class="text-end">Acciones</th></tr>
                         </thead>
                         <tbody>
                             {% for h in pedidos_hoy %}
                             <tr>
                                 <td>{{ h.fecha }}</td>
                                 <td class="fw-bold">{{ h.nombre_cliente }}</td>
-                                <td><span class="badge bg-dark">{{ h.jugador_id }}</span></td>
+                                <td>{{ h.jugador_id }}</td>
                                 <td>{{ h.detalle }}</td>
-                                <td class="fw-bold text-success">S/ {{ h.total }}</td>
-                                <td><span class="badge bg-secondary">{{ h.telefono_digitos }}</span></td>
-                                <td><code>{{ h.codigo_operacion }}</code></td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 11px;" onclick="return confirm('¿Estás seguro de eliminar este registro del historial?');" title="Eliminar">🗑️</a>
-                                </td>
+                                <td class="text-success fw-bold">S/ {{ h.total }}</td>
+                                <td class="text-end"><a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger">🗑️</a></td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="8" class="text-center py-4 text-muted">No hay ventas registradas hoy.</td></tr>
+                            <tr><td colspan="6" class="text-center py-4 text-muted">No hay ventas hoy.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -155,253 +194,43 @@
             </div>
 
         {% elif seccion == 'codigos_promo' %}
-            
-            <!-- CUADRO DE CONFIGURACIÓN DEL PREMIO AUTOMÁTICO DE REFERIDOS -->
-            <div class="card shadow-sm border-success mb-4">
-                <div class="card-header bg-success text-white fw-bold">
-                    ⚙️ Configuración del Premio Automático por Amigo Referido
-                </div>
+            <div class="card shadow-sm border-info">
+                <div class="card-header bg-info text-white fw-bold">🎟️ Códigos Promocionales</div>
                 <div class="card-body">
-                    <form action="{{ url_for('actualizar_config_referido') }}" method="POST" class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold">Nombre del Premio:</label>
-                            <input type="text" name="nombre_premio" class="form-control form-control-sm" value="{{ config_referido.nombre_premio if config_referido else 'Cupón de Recompensa' }}" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-bold">Descuento del Premio (%):</label>
-                            <input type="number" step="0.1" name="descuento_referido" class="form-control form-control-sm" value="{{ config_referido.descuento_porcentaje if config_referido else 6.0 }}" required>
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-dark btn-sm w-100 fw-bold">Guardar</button>
-                        </div>
+                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-3 mb-3">
+                        <div class="col-md-4"><input type="text" name="codigo" class="form-control form-control-sm" placeholder="Código" required></div>
+                        <div class="col-md-3"><input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Descuento %" required></div>
+                        <div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button></div>
                     </form>
-                    <div class="form-text small text-muted mt-2">
-                        * Este porcentaje se aplicará automáticamente al código único y exclusivo que se genera para el patrocinador cuando su amigo completa la meta.
-                    </div>
-                </div>
-            </div>
-
-            <!-- CÓDIGOS PROMOCIONALES GENERALES -->
-            <div class="card shadow-sm border-info mb-4">
-                <div class="card-header bg-info text-white fw-bold">
-                    🎟️ Gestión de Códigos Promocionales y Límites (Generales)
-                </div>
-                <div class="card-body">
-                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-3 mb-4 align-items-end">
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Código:</label>
-                            <input type="text" name="codigo" class="form-control form-control-sm" placeholder="Ej. DESCUENTO10" required>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-bold">Descuento (%):</label>
-                            <input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Ej. 10" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label small fw-bold">Tipo de Límite:</label>
-                            <select name="tipo_limite" id="tipo_limite" class="form-select form-select-sm" onchange="toggleMaxUsos(this)">
-                                <option value="ilimitado">Ilimitado</option>
-                                <option value="una_por_cuenta">Una vez por cuenta</option>
-                                <option value="primeras_cuentas">Primeras N cuentas</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2" id="div_max_usos" style="display: none;">
-                            <label class="form-label small fw-bold">Cant. Cuentas:</label>
-                            <input type="number" name="max_usos_primeras" class="form-control form-control-sm" value="0" placeholder="Ej. 10">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold mt-4">Crear Código</button>
-                        </div>
-                    </form>
-
-                    <h6 class="fw-bold text-dark mb-2">Códigos Activos y Premios Configurados</h6>
-                    <table class="table table-sm table-bordered align-middle small mb-3">
-                        <thead class="table-light">
-                            <tr><th>Código</th><th>Descuento</th><th>Regla de Uso</th><th>Tipo</th><th class="text-end">Acción</th></tr>
-                        </thead>
+                    <table class="table table-sm table-bordered small">
+                        <thead><tr><th>Código</th><th>Descuento</th><th>Acción</th></tr></thead>
                         <tbody>
                             {% for cp in codigos_promo %}
                             <tr>
-                                <td class="fw-bold text-primary">{{ cp.codigo }}</td>
+                                <td class="fw-bold">{{ cp.codigo }}</td>
                                 <td>{{ cp.descuento_porcentaje }}%</td>
-                                <td>{{ cp.tipo_limite }}</td>
-                                <td>{% if cp.es_premio_referido %}<span class="badge bg-success">Referido (Automático)</span>{% else %}<span class="badge bg-secondary">General (Manual)</span>{% endif %}</td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-sm btn-danger py-0 px-2" onclick="return confirm('¿Eliminar este código?')">🗑️</a>
-                                </td>
+                                <td><a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-danger btn-sm py-0">🗑️</a></td>
                             </tr>
-                            {% else %}
-                            <tr><td colspan="5" class="text-center text-muted py-3">No hay códigos creados.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
-
-                    <!-- TABLA DE REGISTRO DE REFERIDOS EN EL ADMIN -->
-                    <h6 class="fw-bold text-dark mb-2 mt-4">👥 Registro y Control de Referidos Global</h6>
-                    <table class="table table-sm table-bordered align-middle small mb-0">
-                        <thead class="table-light">
-                            <tr><th>Patrocinador (Quien invita)</th><th>Amigo Invitado</th><th>Fecha</th><th>Estado de Meta (Equivalente a 1456 Fragmentos)</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for ref in registros_referidos %}
-                                {% set pat = Usuario.query.get(ref.patrocinador_id) %}
-                                {% set amg = Usuario.query.get(ref.referido_id) %}
-                                <tr>
-                                    <td class="fw-bold text-primary">{{ pat.nombre if pat else 'Usuario' }}</td>
-                                    <td>{{ amg.nombre if amg else 'Usuario' }}</td>
-                                    <td>{{ ref.fecha }}</td>
-                                    <td>
-                                        {% if ref.meta_cumplida %}
-                                            <span class="badge bg-success">Meta Cumplida ✓</span>
-                                        {% else %}
-                                            <span class="badge bg-warning text-dark">Pendiente de compra</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% else %}
-                            <tr><td colspan="4" class="text-center text-muted py-3">No hay registros de referidos todavía.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-
                 </div>
             </div>
-
-            <script>
-            function toggleMaxUsos(select) {
-                const div = document.getElementById('div_max_usos');
-                if (select.value === 'primeras_cuentas') {
-                    div.style.display = 'block';
-                } else {
-                    div.style.display = 'none';
-                }
-            }
-            </script>
 
         {% elif seccion == 'gestion_usuarios' %}
-            
-            <!-- SOLICITUDES DE RESTABLECIMIENTO DE CLAVE (RECUPERACIÓN) -->
-            <div class="card shadow-sm mb-4 border-warning">
-                <div class="card-header bg-warning text-dark fw-bold">
-                    🔑 Solicitudes de Restablecimiento de Contraseña
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0 small">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Correo</th>
-                                <th>Teléfono</th>
-                                <th>Nueva Contraseña</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for u in solicitudes_reset %}
-                            <tr>
-                                <td>{{ u.nombre }}</td>
-                                <td>{{ u.correo }}</td>
-                                <td>{{ u.telefono }}</td>
-                                <td>
-                                    <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="d-flex gap-1">
-                                        <input type="text" name="nueva_password" class="form-control form-control-sm" placeholder="Nueva clave" required>
-                                        <button type="submit" class="btn btn-sm btn-success fw-bold">Guardar</button>
-                                    </form>
-                                </td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar esta solicitud?')">Eliminar</a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-3 text-muted">No hay solicitudes de restablecimiento de contraseña.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- PENDIENTES DE CONFIRMACIÓN DE REGISTRO -->
-            <div class="card shadow-sm mb-4 border-secondary">
-                <div class="card-header bg-secondary text-white fw-bold">
-                    👥 Usuarios Pendientes de Confirmación (Registro)
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover align-middle mb-0 small">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nombre</th>
-                                <th>Correo</th>
-                                <th>Teléfono</th>
-                                <th>Estado</th>
-                                <th class="text-end">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for u in pendientes %}
-                            <tr>
-                                <td>{{ u.nombre }}</td>
-                                <td>{{ u.correo }}</td>
-                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
-                                <td><span class="badge bg-secondary">Pendiente</span></td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('confirmar_usuario', id=u.id) }}" class="btn btn-sm btn-success fw-bold me-1">Confirmar</a>
-                                    <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Estás seguro?')">Eliminar</a>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-3 text-muted">No hay registros pendientes.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- CLIENTES REGISTRADOS Y ESTADO EN LÍNEA -->
             <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white fw-bold">
-                    Clientes Registrados y Estado en Línea
-                </div>
+                <div class="card-header bg-dark text-white fw-bold">👥 Gestión de Usuarios</div>
                 <div class="card-body p-0">
                     <table class="table table-striped align-middle mb-0 small">
-                        <thead class="table-light">
-                            <tr><th>Estado</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Rango</th><th>Categoría</th><th class="text-end">Acción</th></tr>
-                        </thead>
+                        <thead><tr><th>Nombre</th><th>Correo</th><th>Rango</th><th class="text-end">Acción</th></tr></thead>
                         <tbody>
                             {% for u in confirmados %}
-                            <tr id="fila-usuario-{{ u.id }}">
-                                <td>
-                                    {% if u.en_linea %}
-                                        <span id="badge-estado-{{ u.id }}" class="d-inline-flex align-items-center text-success fw-bold" title="En línea">
-                                            <span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span> En línea
-                                        </span>
-                                    {% else %}
-                                        <span id="badge-estado-{{ u.id }}" class="d-inline-flex align-items-center text-muted" title="Desconectado">
-                                            <span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span> Desconectado
-                                        </span>
-                                    {% endif %}
-                                </td>
+                            <tr>
                                 <td class="fw-semibold">{{ u.nombre }}</td>
                                 <td>{{ u.correo }}</td>
-                                <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                 <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
-                                <td>
-                                    <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST">
-                                        <select name="categoria" class="form-select form-select-sm" style="width: 140px;" onchange="this.form.submit()">
-                                            <option value="Supercliente" {% if u.categoria == 'Supercliente' %}selected{% endif %}>⭐ Supercliente</option>
-                                            <option value="Cliente" {% if u.categoria == 'Cliente' %}selected{% endif %}>👤 Cliente</option>
-                                            <option value="Otros" {% if u.categoria == 'Otros' %}selected{% endif %}>📁 Otros</option>
-                                        </select>
-                                    </form>
-                                </td>
-                                <td class="text-end">
-                                    <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar cliente?')">Eliminar</a>
-                                </td>
+                                <td class="text-end"><a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-danger">Eliminar</a></td>
                             </tr>
-                            {% else %}
-                            <tr><td colspan="7" class="text-center py-3 text-muted">No hay clientes confirmados.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -414,127 +243,10 @@
 
 <script>
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
-let totalPedidosConocido = 0;
-let totalUsuariosConocido = 0;
-let sistemaActivo = false;
-
-window.addEventListener('DOMContentLoaded', () => {
-    if (audioActivado) {
-        const banner = document.getElementById('banner-activar-audio');
-        if (banner) banner.style.display = 'none';
-    }
-    
-    fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
-        .then(res => res.json())
-        .then(data => {
-            totalPedidosConocido = parseInt(data.total_pedidos || 0, 10);
-            totalUsuariosConocido = parseInt(data.total_usuarios || 0, 10);
-            sistemaActivo = true;
-        })
-        .catch(err => { sistemaActivo = true; });
-});
-
-function reproducirTimbreAlerta() {
-    if (audioActivado) {
-        const audio = document.getElementById('timbre-audio');
-        if (audio) {
-            audio.currentTime = 0;
-            audio.play().catch(e => console.log("Audio play prevented:", e));
-        }
-    }
-}
-
 function activarAudioSistema() {
-    const audio = document.getElementById('timbre-audio');
-    if (audio) {
-        audio.play().then(() => {
-            audio.pause();
-            audio.currentTime = 0;
-            audioActivado = true;
-            localStorage.setItem('windnexx_audio_activo', 'true');
-            const banner = document.getElementById('banner-activar-audio');
-            if (banner) {
-                banner.className = 'alert alert-success text-center fw-bold py-2 mb-3 shadow-sm';
-                banner.innerHTML = '✅ Alertas de sonido y notificaciones en tiempo real ACTIVADAS';
-                setTimeout(() => { banner.style.display = 'none'; }, 2000);
-            }
-        }).catch(err => { alert("Haz clic nuevamente para permitir el sonido."); });
-    }
-}
-
-function verificarNovedadesAdmin() {
-    if (!sistemaActivo) return;
-
-    fetch('/api/verificar-alertas?t=' + Date.now(), { cache: 'no-store' })
-        .then(response => response.json())
-        .then(data => {
-            const pedidosActuales = parseInt(data.total_pedidos || 0, 10);
-            const usuariosActuales = parseInt(data.total_usuarios || 0, 10);
-
-            let hayNovedad = false;
-            let mensaje = "";
-
-            if (pedidosActuales > totalPedidosConocido) {
-                totalPedidosConocido = pedidosActuales;
-                mensaje = "📦 ¡Nuevo Pedido Recibido!";
-                hayNovedad = true;
-            } else if (usuariosActuales > totalUsuariosConocido) {
-                totalUsuariosConocido = usuariosActuales;
-                mensaje = "👤 ¡Nuevo Usuario Registrado!";
-                hayNovedad = true;
-            }
-
-            if (hayNovedad) {
-                reproducirTimbreAlerta();
-                const contenedor = document.getElementById('contenedor-notificaciones');
-                if (contenedor) {
-                    const alertaDiv = document.createElement('div');
-                    alertaDiv.className = 'alert alert-danger shadow-lg border-2 fw-bold p-3 mb-2';
-                    alertaDiv.innerHTML = `<div>${mensaje}</div><div class="small mt-1 text-dark">⚡ Actualizando panel al instante...</div>`;
-                    contenedor.appendChild(alertaDiv);
-                }
-                setTimeout(() => { location.reload(); }, 800);
-            }
-        })
-        .catch(err => {});
-
-    {% if seccion == 'gestion_usuarios' %}
-    fetch('/api/estado-usuarios?t=' + Date.now(), { cache: 'no-store' })
-        .then(res => res.json())
-        .then(estados => {
-            for (const [id, enLinea] of Object.entries(estados)) {
-                const badge = document.getElementById(`badge-estado-${id}`);
-                if (badge) {
-                    if (enLinea) {
-                        badge.className = 'd-inline-flex align-items-center text-success fw-bold';
-                        badge.title = 'En línea';
-                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#198754; border-radius:50%; margin-right:6px; box-shadow: 0 0 5px #198754;"></span> En línea`;
-                    } else {
-                        badge.className = 'd-inline-flex align-items-center text-muted';
-                        badge.title = 'Desconectado';
-                        badge.innerHTML = `<span style="display:inline-block; width:10px; height:10px; background-color:#dc3545; border-radius:50%; margin-right:6px;"></span> Desconectado`;
-                    }
-                }
-            }
-        })
-        .catch(err => {});
-    {% endif %}
-}
-
-setInterval(verificarNovedadesAdmin, 3000);
-
-function copiarTexto(texto, elemento) {
-    navigator.clipboard.writeText(texto).then(function() {
-        let originalHTML = elemento.innerHTML;
-        elemento.innerHTML = '<i class="bi bi-check2"></i> ¡Copiado!';
-        elemento.classList.remove('bg-dark');
-        elemento.classList.add('bg-success');
-        setTimeout(function() {
-            elemento.innerHTML = originalHTML;
-            elemento.classList.remove('bg-success');
-            elemento.classList.add('bg-dark');
-        }, 1200);
-    });
+    audioActivado = true;
+    localStorage.setItem('windnexx_audio_activo', 'true');
+    document.getElementById('banner-activar-audio').style.display = 'none';
 }
 </script>
 {% endblock %}

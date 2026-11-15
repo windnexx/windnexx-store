@@ -1,28 +1,73 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center align-items-center" style="min-height: 70vh;">
     <div class="col-md-5">
-        <div class="card shadow-sm border-0">
+        <div class="card shadow-lg border-secondary">
             <div class="card-body p-4">
-                <h3 class="card-title text-center mb-4">Iniciar Sesión</h3>
+                <h3 class="card-title text-center mb-4 fw-bold text-primary">Iniciar Sesión</h3>
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="mb-3">
-                        <label class="form-label">Correo Electrónico</label>
+                        <label class="form-label text-light">Correo Electrónico</label>
                         <input type="email" name="correo" class="form-control" required placeholder="correo@ejemplo.com">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Contraseña</label>
+                        <label class="form-label text-light">Contraseña</label>
                         <input type="password" name="password" class="form-control" required placeholder="••••••••">
                     </div>
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">Ingresar</button>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 mb-3">Ingresar</button>
                 </form>
-                <div class="text-center mt-3">
-                    <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none small">¿Olvidé mi contraseña?</a>
+                <div class="d-flex justify-content-between text-small mt-2">
+                    <a href="{{ url_for('register') }}" class="text-decoration-none text-info">Crear Cuenta</a>
+                    <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none text-warning">¿Olvidé mi contraseña?</a>
                 </div>
-                <hr class="my-4">
-                <p class="text-center mb-0">¿No tienes cuenta? <a href="{{ url_for('register') }}">Regístrate aquí</a></p>
+                <hr class="border-secondary my-4">
+                <!-- Botón de Soporte que abre Modal con formulario previo -->
+                <button type="button" class="btn btn-outline-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalSoporte">
+                    <i class="bi bi-headset"></i> Soporte / Atención al Cliente
+                </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Soporte con Formulario y Subida de Fotos -->
+<div class="modal fade" id="modalSoporte" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fw-bold text-success"><i class="bi bi-chat-dots-fill"></i> Chat de Soporte WINDNEXX</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('enviar_soporte') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <p class="small text-muted mb-3">Ingresa tus datos para abrir el chat con nuestro equipo de atención:</p>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tu Nombre:</label>
+                        <input type="text" name="nombre" class="form-control" required placeholder="Ej. Juan Pérez">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Correo Electrónico:</label>
+                        <input type="email" name="correo" class="form-control" required placeholder="correo@ejemplo.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Número de Teléfono:</label>
+                        <input type="text" name="telefono" class="form-control" required placeholder="999999999">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Tu Consulta / Mensaje:</label>
+                        <textarea name="mensaje" class="form-control" rows="3" required placeholder="Escribe tu duda o problema aquí..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Adjuntar Captura / Foto (Opcional):</label>
+                        <input type="file" name="imagen" class="form-control" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success fw-bold btn-sm">Enviar Mensaje</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
