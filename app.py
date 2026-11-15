@@ -51,11 +51,11 @@ class CodigoPromo(db.Model):
     es_premio_referido = db.Column(db.Boolean, default=False)
     propietario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
 
-# Tabla de Configuración Global de Premios de Referidos (Nuevo cuadro de control)
+# Tabla de Configuración Global de Premios de Referidos
 class ConfiguracionReferido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre_premio = db.Column(db.String(100), default='Descuento por Referido')
-    descuento_porcentaje = db.Column(db.Float, default=6.0) # <--- Aquí puedes cambiar el % futuro de los referidos
+    descuento_porcentaje = db.Column(db.Float, default=6.0)
 
 # Tabla auxiliar para control de códigos
 class UsoCodigoUsuario(db.Model):
@@ -111,7 +111,6 @@ with app.app_context():
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
     
-    # Asegurar configuración inicial de referido al 6%
     if not ConfiguracionReferido.query.first():
         conf_inicial = ConfiguracionReferido(nombre_premio='Cupón de Recompensa de Referido', descuento_porcentaje=6.0)
         db.session.add(conf_inicial)
@@ -266,6 +265,9 @@ def register():
                 flash('El código de referido ingresado no es válido.', 'warning')
 
         hashed_password = generate_password_hash(password)
+        
+        # Generación segura corregida para evitar Error 500 en la base de datos remota
+        temp_hash = os.urandom(3).hex().upper()
         nuevo_usuario = Usuario(
             nombre=nombre,
             correo=correo,
@@ -275,7 +277,8 @@ def register():
             confirmado=False,
             categoria='Cliente',
             rango='Bronce',
-            referido_por_id=patrocinador.id if patrocinador else None
+            referido_por_id=patrocinador.id if patrocinador else None,
+            codigo_referido=f"WIND-TEMP-{temp_hash}"
         )
         
         db.session.add(nuevo_usuario)
@@ -610,7 +613,6 @@ def eliminar_usuario(id):
 
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
-# Rutas del Cliente
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
