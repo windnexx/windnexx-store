@@ -9,11 +9,11 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy import text
 
-# Importaciones para Google OAuth y Enlaces Seguros de Correo
+# Importaciones para Google OAuth, Enlaces Seguros y Envío de Correo
 from authlib.integrations.flask_client import OAuth
 from itsdangerous import URLSafeTimedSerializer
+from flask_mail import Mail, Message
 
-# Intentar importar pandas para excel, sino continuar sin él de forma segura
 try:
     import pandas as pd
     EXCEL_DISPONIBLE = True
@@ -22,6 +22,16 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_windnexx_desarrollo')
+
+# Configuración de Flask-Mail (para enviar correos reales)
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True') == 'True'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
+
+mail = Mail(app)
 
 # Configuración de Google OAuth
 app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
@@ -62,17 +72,17 @@ TIMEZONE_LIMA = ZoneInfo("America/Lima")
 def hora_lima():
     return datetime.now(TIMEZONE_LIMA)
 
-# Modelo de Usuario Actualizado (password opcional para Google y campos de verificación)
+# Modelo de Usuario
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     correo = db.Column(db.String(100), unique=True, nullable=False)
     telefono = db.Column(db.String(20), nullable=True, default='')
-    password = db.Column(db.String(200), nullable=True) # Opcional para cuentas de Google
+    password = db.Column(db.String(200), nullable=True)
     google_id = db.Column(db.String(100), unique=True, nullable=True)
     correo_verificado = db.Column(db.Boolean, default=False)
     rol = db.Column(db.String(20), default='cliente')
-    confirmado = db.Column(db.Boolean, default=True) # Activado automáticamente por Google o Enlace
+    confirmado = db.Column(db.Boolean, default=True)
     categoria = db.Column(db.String(20), default='Cliente')
     solicitud_reset = db.Column(db.Boolean, default=False)
     ultima_actividad = db.Column(db.DateTime, nullable=True)
@@ -80,12 +90,10 @@ class Usuario(db.Model):
     referido_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
     rango = db.Column(db.String(20), default='Bronce')
 
-# Modelo de Configuración General / Publicidad
 class ConfiguracionGlobal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     anuncio_publicidad = db.Column(db.Text, default='¡Bienvenidos a WINDNEXX Store! Aprovecha los mejores descuentos.')
 
-# Modelo de Código Promocional
 class CodigoPromo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
@@ -96,19 +104,16 @@ class CodigoPromo(db.Model):
     es_premio_referido = db.Column(db.Boolean, default=False)
     propietario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
 
-# Tabla de Configuración Global de Premios de Referidos
 class ConfiguracionReferido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre_premio = db.Column(db.String(100), default='Descuento por Referido')
     descuento_porcentaje = db.Column(db.Float, default=6.0)
 
-# Tabla auxiliar para control de códigos
 class UsoCodigoUsuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     codigo_id = db.Column(db.Integer, db.ForeignKey('codigo_promo.id'), nullable=False)
 
-# Modelo de Registro de Referidos
 class RegistroReferido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patrocinador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -116,7 +121,6 @@ class RegistroReferido(db.Model):
     meta_cumplida = db.Column(db.Boolean, default=False)
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
 
-# Modelo de Pedido
 class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
@@ -132,7 +136,6 @@ class Pedido(db.Model):
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
     solo_fecha = db.Column(db.String(20), default=lambda: hora_lima().strftime('%d/%m/%Y'))
 
-# Modelo para Mensajes de Soporte / Atención al Cliente
 class MensajeSoporte(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
@@ -146,10 +149,12 @@ class MensajeSoporte(db.Model):
 with app.app_context():
     db.create_all()
     
-    # Auto-migración segura para agregar columnas faltantes en Render o entorno local
+    # Migración de columnas y marcar a los usuarios antiguos como verificados automáticamente
     try:
         db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS google_id VARCHAR(100) UNIQUE;"))
         db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS correo_verificado BOOLEAN DEFAULT FALSE;"))
+        # Excepción solicitada: los usuarios ya registrados antes no necesitan verificar
+        db.session.execute(text("UPDATE usuario SET correo_verificado = TRUE WHERE correo_verificado IS FALSE AND google_id IS NULL AND password IS NOT NULL;"))
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -434,7 +439,7 @@ def register():
             telefono=telefono,
             password=hashed_password,
             rol='cliente',
-            correo_verificado=False,
+            correo_verificado=False, # Nuevos usuarios requieren verificación real
             confirmado=True,
             categoria='Cliente',
             rango='Bronce',
@@ -453,11 +458,18 @@ def register():
             
         db.session.commit()
         
-        token = serializer.dumps(correo, salt='email-verification-salt')
-        enlace_verificacion = url_for('verificar_correo', token=token, _external=True)
-        print(f"--- ENLACE DE VERIFICACIÓN PARA {correo}: {enlace_verificacion} ---")
-        
-        flash('Registro exitoso. Revisa tu correo electrónico para activar tu cuenta.', 'success')
+        # Enviar correo real de verificación
+        try:
+            token = serializer.dumps(correo, salt='email-verification-salt')
+            enlace_verificacion = url_for('verificar_correo', token=token, _external=True)
+            
+            msg = Message('Verifica tu cuenta en WINDNEXX Store', recipients=[correo])
+            msg.body = f"Hola {nombre},\n\nGracias por registrarte en WINDNEXX Store. Por favor haz clic en el siguiente enlace para verificar tu correo electrónico y activar tu cuenta:\n\n{enlace_verificacion}\n\nSi no creaste esta cuenta, ignora este mensaje."
+            mail.send(msg)
+            flash('Registro exitoso. Hemos enviado un enlace de verificación a tu correo electrónico.', 'success')
+        except Exception as e:
+            flash(f'Registro exitoso, pero ocurrió un error al enviar el correo: {str(e)}', 'warning')
+            
         return redirect(url_for('login'))
         
     return render_template('register.html')
