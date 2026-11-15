@@ -85,7 +85,7 @@
             </div>
 
         {% elif seccion == 'soporte' %}
-            <!-- NUEVA SECCIÓN: BANDEJA DE ENTRADA DE SOPORTE -->
+            <!-- SECCIÓN: BANDEJA DE ENTRADA DE SOPORTE -->
             <div class="card border-secondary">
                 <div class="card-header fw-bold bg-primary text-white">🎧 Bandeja de Entrada de Soporte y Chats</div>
                 <div class="card-body">
@@ -218,24 +218,139 @@
             </div>
 
         {% elif seccion == 'gestion_usuarios' %}
-            <div class="card shadow-sm">
-                <div class="card-header bg-dark text-white fw-bold">👥 Gestión de Usuarios</div>
+
+            <!-- 1. SOLICITUDES DE REGISTRO PENDIENTES -->
+            <div class="card shadow-sm border-warning mb-4">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span>⏳ Solicitudes de Registro Pendientes</span>
+                    <span class="badge bg-dark text-white">{{ pendientes|length }} pendientes</span>
+                </div>
                 <div class="card-body p-0">
-                    <table class="table table-striped align-middle mb-0 small">
-                        <thead><tr><th>Nombre</th><th>Correo</th><th>Rango</th><th class="text-end">Acción</th></tr></thead>
-                        <tbody>
-                            {% for u in confirmados %}
-                            <tr>
-                                <td class="fw-semibold">{{ u.nombre }}</td>
-                                <td>{{ u.correo }}</td>
-                                <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
-                                <td class="text-end"><a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-danger">Eliminar</a></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Correo</th>
+                                    <th>Teléfono</th>
+                                    <th class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in pendientes %}
+                                <tr>
+                                    <td class="fw-semibold">{{ p.nombre }}</td>
+                                    <td>{{ p.correo }}</td>
+                                    <td>{{ p.telefono or 'No registrado' }}</td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('confirmar_usuario', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1">✓ Aceptar</a>
+                                        <a href="{{ url_for('eliminar_usuario', id=p.id) }}" class="btn btn-sm btn-danger">✕ Rechazar</a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center py-3 text-muted">No hay solicitudes de registro pendientes.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+
+            <!-- 2. SOLICITUDES DE RECUPERACIÓN DE CONTRASEÑA -->
+            <div class="card shadow-sm border-info mb-4">
+                <div class="card-header bg-info text-dark fw-bold d-flex justify-content-between align-items-center">
+                    <span>🔑 Solicitudes de Recuperación de Contraseña</span>
+                    <span class="badge bg-dark text-white">{{ solicitudes_reset|length }} solicitudes</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th>Correo</th>
+                                    <th>Teléfono</th>
+                                    <th class="text-end">Nueva Contraseña y Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in solicitudes_reset %}
+                                <tr>
+                                    <td class="fw-semibold">{{ s.nombre }}</td>
+                                    <td>{{ s.correo }}</td>
+                                    <td>{{ s.telefono or 'No registrado' }}</td>
+                                    <td class="text-end">
+                                        <form action="{{ url_for('restablecer_password', id=s.id) }}" method="POST" class="d-inline-flex gap-1 align-items-center">
+                                            <input type="text" name="nueva_password" class="form-control form-control-sm" placeholder="Nueva clave" style="width: 130px;" required>
+                                            <button type="submit" class="btn btn-sm btn-primary fw-bold">Guardar</button>
+                                            <a href="{{ url_for('eliminar_solicitud_reset', id=s.id) }}" class="btn btn-sm btn-outline-danger">✕</a>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center py-3 text-muted">No hay solicitudes de cambio de contraseña.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. GESTIÓN DE USUARIOS ACTIVOS (TELÉFONO + EN LÍNEA / DESCONECTADO + CATEGORÍA) -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>👥 Gestión de Usuarios Activos</span>
+                    <span class="badge bg-secondary">{{ confirmados|length }} usuarios</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle mb-0 small">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Correo</th>
+                                    <th>Teléfono</th>
+                                    <th>Estado</th>
+                                    <th>Categoría</th>
+                                    <th>Rango</th>
+                                    <th class="text-end">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in confirmados %}
+                                <tr>
+                                    <td class="fw-semibold">{{ u.nombre }}</td>
+                                    <td>{{ u.correo }}</td>
+                                    <td>{{ u.telefono or 'No registrado' }}</td>
+                                    <td id="estado-usuario-{{ u.id }}">
+                                        {% if u.en_linea %}
+                                            <span class="badge bg-success">🟢 En línea</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">⚫ Desconectado</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST" class="d-inline-flex gap-1">
+                                            <select name="categoria" class="form-select form-select-sm" style="width: 120px;">
+                                                <option value="Cliente" {% if u.categoria == 'Cliente' %}selected{% endif %}>Cliente</option>
+                                                <option value="Supercliente" {% if u.categoria == 'Supercliente' %}selected{% endif %}>Supercliente</option>
+                                                <option value="Otros" {% if u.categoria == 'Otros' %}selected{% endif %}>Otros</option>
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-outline-info">✓</button>
+                                        </form>
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-danger">Eliminar</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         {% endif %}
 
     </div>
@@ -243,10 +358,4 @@
 
 <script>
 let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
-function activarAudioSistema() {
-    audioActivado = true;
-    localStorage.setItem('windnexx_audio_activo', 'true');
-    document.getElementById('banner-activar-audio').style.display = 'none';
-}
-</script>
-{% endblock %}
+if (audioActivado) {
