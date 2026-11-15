@@ -7,16 +7,6 @@
             <div class="card-body p-4">
                 <h3 class="card-title text-center mb-4 fw-bold text-primary">Iniciar Sesión</h3>
                 
-                <!-- Botón de Iniciar Sesión con Google -->
-                <a href="{{ url_for('login_google') }}" class="btn btn-light w-100 fw-bold py-2 mb-3 shadow-sm d-flex align-items-center justify-content-center text-dark border">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-google me-2" viewBox="0 0 16 16">
-                      <path d="M15.545 6.558a9.42 9.42 0 0 1 .139 1.626c0 2.434-.87 4.492-2.384 5.885h.002C11.978 15.292 10.158 16 8 16A8 8 0 1 1 8 0a7.689 7.689 0 0 1 5.352 2.082l-2.284 2.284A4.347 4.347 0 0 0 8 3.166c-2.087 0-3.86 1.408-4.492 3.304a4.792 4.792 0 0 0 0 3.063h.003c.635 1.893 2.405 3.301 4.492 3.301 1.078 0 2.004-.276 2.722-7.648h-2.722v-2.9h5.536z"/>
-                    </svg>
-                    Continuar con Google
-                </a>
-
-                <div class="text-center text-muted mb-3 small">O inicia sesión con tu correo</div>
-
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="mb-3">
                         <label class="form-label text-light">Correo Electrónico</label>
@@ -28,12 +18,15 @@
                     </div>
                     <button type="submit" class="btn btn-primary w-100 fw-bold py-2 mb-3">Ingresar</button>
                 </form>
+
                 <div class="d-flex justify-content-between text-small mt-2">
                     <a href="{{ url_for('register') }}" class="text-decoration-none text-info">Crear Cuenta</a>
                     <a href="{{ url_for('recuperar_password') }}" class="text-decoration-none text-warning">¿Olvidé mi contraseña?</a>
                 </div>
+
                 <hr class="border-secondary my-4">
-                <!-- Botón de Soporte que abre Modal con formulario previo -->
+                
+                <!-- Botón de Soporte que abre Modal con formulario -->
                 <button type="button" class="btn btn-outline-success w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#modalSoporte">
                     <i class="bi bi-headset"></i> Soporte / Atención al Cliente
                 </button>
@@ -42,7 +35,7 @@
     </div>
 </div>
 
-<!-- Modal de Soporte con Formulario y Subida de Fotos -->
+<!-- Modal de Soporte -->
 <div class="modal fade" id="modalSoporte" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-light border-secondary">
