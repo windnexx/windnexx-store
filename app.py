@@ -157,6 +157,7 @@ with app.app_context():
     try:
         db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS google_id VARCHAR(100) UNIQUE;"))
         db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS correo_verificado BOOLEAN DEFAULT FALSE;"))
+        # Excepción: usuarios antiguos ya registrados quedan verificados automáticamente
         db.session.execute(text("UPDATE usuario SET correo_verificado = TRUE WHERE correo_verificado IS FALSE AND google_id IS NULL AND password IS NOT NULL;"))
         db.session.commit()
     except Exception as e:
@@ -409,7 +410,7 @@ def register():
             telefono=telefono,
             password=hashed_password,
             rol='cliente',
-            correo_verificado=False, # Bloqueado hasta que verifique
+            correo_verificado=False, # Requerirá verificación real
             confirmado=True,
             categoria='Cliente',
             rango='Bronce',
@@ -427,7 +428,7 @@ def register():
             
         db.session.commit()
         
-        # Enviar correo real de verificación con reporte de error detallado en consola
+        # Enviar correo real de verificación
         try:
             token = serializer.dumps(correo, salt='email-verification-salt')
             enlace_verificacion = url_for('verificar_correo', token=token, _external=True)
@@ -506,12 +507,81 @@ def recuperar_password():
             
     return render_template('recuperar.html')
 
+# --- PANEL DE ADMINISTRACIÓN RESTAURADO ---
 @app.route('/admin')
 def admin_panel():
     if 'usuario_id' not in session or session.get('rol') != 'admin':
         flash('Acceso restringido para administradores.', 'danger')
         return redirect(url_for('login'))
-    return render_template('admin.html', seccion=request.args.get('seccion', 'pedidos_pendientes'))
+        
+    seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
+    
+    usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').order_by(Usuario.ultima_actividad.desc().nullslast()).all()
+    
+    solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
+    codigos_promo = CodigoPromo.query.all()
+    registros_referidos = RegistroReferido.query.all()
+    config_referido = ConfiguracionReferido.query.first()
+    config_global = ConfiguracionGlobal.query.first()
+    mensajes_soporte = MensajeSoporte.query.order_by(MensajeSoporte.id.desc()).all()
+    
+    limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
+    for u in usuarios_confirmados:
+        u.en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
+    
+    pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
+    pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
+    
+    hoy_str = hora_lima().strftime('%d/%m/%Y')
+    historial_envios = Pedido.query.filter_by(estado='Completado').order_by(Pedido.id.desc()).all()
+    
+    pedidos_hoy = [p for p in historial_envios if getattr(p, 'solo_fecha', hoy_str) == hoy_str]
+    
+    historicos_agrupados = {}
+    for p in historial_envios:
+        fecha_item = getattr(p, 'solo_fecha', hoy_str)
+        if fecha_item != hoy_str:
+            if fecha_item not in historicos_agrupados:
+                historicos_agrupados[fecha_item] = {'pedidos': [], 'total_monto': 0.0, 'total_fragmentos': 0}
+            
+            historicos_agrupados[fecha_item]['pedidos'].append(p)
+            historicos_agrupados[fecha_item]['total_monto'] += (p.total + (p.descuento_aplicado or 0.0))
+            
+            m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
+            if m_frag:
+                historicos_agrupados[fecha_item]['total_fragmentos'] += int(m_frag.group(1))
+
+    total_monto_hoy = sum([(p.total + (p.descuento_aplicado or 0.0)) for p in pedidos_hoy])
+    total_frag_hoy = 0
+    for p in pedidos_hoy:
+        m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
+        if m_frag:
+            total_frag_hoy += int(m_frag.group(1))
+    
+    info_hoy = {
+        'pedidos': pedidos_hoy,
+        'total_monto': total_monto_hoy,
+        'total_fragmentos': total_frag_hoy
+    }
+    
+    return render_template(
+        'admin.html', 
+        pendientes=[], 
+        confirmados=usuarios_confirmados,
+        solicitudes_reset=solicitudes_reset,
+        codigos_promo=codigos_promo,
+        registros_referidos=registros_referidos,
+        config_referido=config_referido,
+        config_global=config_global,
+        mensajes_soporte=mensajes_soporte,
+        pedidos_validacion=pedidos_validacion,
+        pedidos_recargando=pedidos_recargando,
+        historial_envios=historial_envios,
+        info_hoy=info_hoy,
+        historicos_agrupados=historicos_agrupados,
+        seccion=seccion_admin,
+        Usuario=Usuario
+    )
 
 @app.route('/cliente/home')
 def cliente_home():
