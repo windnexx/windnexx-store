@@ -190,12 +190,17 @@ def api_estado_usuarios():
         return jsonify({}), 403
     
     usuarios = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
-    limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
+    ahora_lima = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None)
+    limite_online = ahora_lima - timedelta(minutes=3)
     
     resultado = {}
     for u in usuarios:
         en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
-        resultado[u.id] = en_linea
+        ultima_str = u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else None
+        resultado[u.id] = {
+            "online": en_linea,
+            "ultima": ultima_str
+        }
         
     return jsonify(resultado)
 
@@ -249,6 +254,7 @@ def login():
             
             session['usuario_id'] = usuario.id
             session['nombre'] = usuario.nombre
+            session['correo'] = usuario.correo
             session['rol'] = usuario.rol
             
             usuario.ultima_actividad = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None)
@@ -318,7 +324,6 @@ def register():
         
     return render_template('register.html')
 
-# NUEVA RUTA PARA PROCESAR EL SOPORTE Y FOTOS DESDE EL CLIENTE O LOGIN
 @app.route('/soporte/enviar', methods=['POST'])
 def enviar_soporte():
     nombre = request.form.get('nombre', '').strip()
@@ -417,7 +422,6 @@ def admin_panel():
         Usuario=Usuario
     )
 
-# RUTA PARA MARCAR SOPORTE COMO ATENDIDO
 @app.route('/admin/soporte/atendido/<int:id>')
 def soporte_atendido(id):
     if 'usuario_id' not in session or session.get('rol') != 'admin':
