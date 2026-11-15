@@ -32,7 +32,7 @@
                     🎧 Mensajes de Soporte <span class="badge bg-danger float-end">{{ mensajes_soporte | selectattr('estado', 'equalto', 'Pendiente') | list | length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action {% if seccion == 'codigos_promo' %}active fw-bold{% endif %}">
-                    🎟️ Códigos y Referidos <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
+                    🎟️ Códigos y Publicidad <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
                 </a>
                 <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
                     👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ pendientes|length + solicitudes_reset|length }}</span>
@@ -168,10 +168,16 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
+            <!-- HISTORIAL DE HOY -->
             <div class="card shadow-sm border-success mb-4">
                 <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📋 Historial de Envíos Realizados (Hoy)</span>
-                    <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-sm btn-light text-dark fw-bold" onclick="return confirm('¿Vaciar y archivar el historial de hoy?')">Vaciar y Archivar Hoy</a>
+                    <div>
+                        {% if info_hoy.pedidos %}
+                            <a href="{{ url_for('exportar_excel', fecha=info_hoy.pedidos[0].solo_fecha) }}" class="btn btn-sm btn-light text-dark fw-bold me-2">📥 Descargar Excel (Hoy)</a>
+                        {% endif %}
+                        <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-sm btn-dark fw-bold" onclick="return confirm('¿Vaciar y archivar el historial de hoy?')">Vaciar y Archivar Hoy</a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -180,7 +186,7 @@
                                 <tr><th>Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th class="text-end">Acciones</th></tr>
                             </thead>
                             <tbody>
-                                {% for h in pedidos_hoy %}
+                                {% for h in info_hoy.pedidos %}
                                 <tr>
                                     <td>{{ h.fecha }}</td>
                                     <td class="fw-bold">{{ h.nombre_cliente }}</td>
@@ -195,37 +201,68 @@
                             </tbody>
                         </table>
                     </div>
+                    {% if info_hoy.pedidos %}
+                        <div class="p-3 bg-dark border-top d-flex justify-content-between align-items-center fw-bold small text-light">
+                            <span>Resumen de Hoy:</span>
+                            <span>📦 Total Fragmentos: <span class="text-info">{{ info_hoy.total_fragmentos }}</span></span>
+                            <span class="text-success">💰 Monto Total Pagado: S/ {{ "%.2f"|format(info_hoy.total_monto) }}</span>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
-            {% if historicos_agrupados %}
+            <!-- ARCHIVO HISTÓRICO EN ACORDEÓN POR FECHAS (COLAPSADO EN BOTONES) -->
             <div class="card shadow-sm border-secondary">
-                <div class="card-header bg-dark text-white fw-bold">📁 Archivo Histórico de Días Anteriores</div>
+                <div class="card-header bg-dark text-white fw-bold">📁 Archivo Histórico de Días Anteriores (Haz clic en una fecha para ver)</div>
                 <div class="card-body">
-                    {% for fecha_f, lista_p in historicos_agrupados.items() %}
-                        <h6 class="fw-bold text-info mt-2">Fecha: {{ fecha_f }}</h6>
-                        <div class="table-responsive mb-3">
-                            <table class="table table-sm table-bordered align-middle small">
-                                <thead class="table-light">
-                                    <tr><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th class="text-end">Acción</th></tr>
-                                </thead>
-                                <tbody>
-                                    {% for h in lista_p %}
-                                    <tr>
-                                        <td>{{ h.nombre_cliente }}</td>
-                                        <td>{{ h.jugador_id }}</td>
-                                        <td>{{ h.detalle }}</td>
-                                        <td class="text-success fw-bold">S/ {{ h.total }}</td>
-                                        <td class="text-end"><a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger py-0">🗑️</a></td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                    {% if historicos_agrupados %}
+                        <div class="accordion" id="acordeonHistorial">
+                            {% for fecha_f, datos in historicos_agrupados.items() %}
+                                {% set loop_id = loop.index %}
+                                <div class="accordion-item mb-2 border rounded overflow-hidden" style="background: rgba(13, 20, 35, 0.95); border-color: var(--border-glass) !important;">
+                                    <h2 class="accordion-header" id="heading{{ loop_id }}">
+                                        <button class="accordion-button collapsed fw-bold text-cyan d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop_id }}" aria-expanded="false" aria-controls="collapse{{ loop_id }}" style="background: rgba(6, 182, 212, 0.1); color: var(--accent-cyan);">
+                                            <span>📅 Fecha: {{ fecha_f }} <span class="badge bg-secondary ms-2">{{ datos.pedidos|length }} ventas</span></span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse{{ loop_id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop_id }}" data-bs-parent="#acordeonHistorial">
+                                        <div class="accordion-body p-2">
+                                            <div class="d-flex justify-content-end mb-2">
+                                                <a href="{{ url_for('exportar_excel', fecha=fecha_f) }}" class="btn btn-sm btn-success fw-bold">📥 Descargar Excel de este Día</a>
+                                            </div>
+                                            <div class="table-responsive mb-2">
+                                                <table class="table table-sm table-bordered align-middle small mb-1">
+                                                    <thead class="table-light">
+                                                        <tr><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th class="text-end">Acción</th></tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for h in datos.pedidos %}
+                                                        <tr>
+                                                            <td>{{ h.nombre_cliente }}</td>
+                                                            <td>{{ h.jugador_id }}</td>
+                                                            <td>{{ h.detalle }}</td>
+                                                            <td class="text-success fw-bold">S/ {{ h.total }}</td>
+                                                            <td class="text-end"><a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger py-0">🗑️</a></td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div class="p-2 bg-dark rounded d-flex justify-content-between align-items-center fw-bold small text-light border">
+                                                <span>Resumen del Día {{ fecha_f }}:</span>
+                                                <span>📦 Total Fragmentos: <span class="text-info">{{ datos.total_fragmentos }}</span></span>
+                                                <span class="text-success">💰 Monto Total: S/ {{ "%.2f"|format(datos.total_monto) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
                         </div>
-                    {% endfor %}
+                    {% else %}
+                        <p class="text-center text-secondary py-3 mb-0">No hay registros en el archivo histórico.</p>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
 
         {% elif seccion == 'codigos_promo' %}
             <div class="card shadow-sm border-info mb-4">
@@ -276,6 +313,19 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <hr class="border-secondary my-4">
+
+                    <!-- GESTIÓN DE PUBLICIDAD PARA EL CLIENT HOME -->
+                    <h6 class="fw-bold text-light mb-2">📢 Anuncio de Publicidad (Inicio del Cliente)</h6>
+                    <form action="{{ url_for('actualizar_publicidad') }}" method="POST" class="p-3 bg-light rounded border mb-4">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Texto del Anuncio / Publicidad:</label>
+                            <textarea name="anuncio_publicidad" class="form-control" rows="3" required>{{ config_global.anuncio_publicidad if config_global else '' }}</textarea>
+                            <div class="form-text text-secondary small">Este texto aparecerá en un cuadro destacado en el inicio del panel del cliente, el cual podrán cerrar si desean.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm fw-bold px-4">Guardar Anuncio</button>
+                    </form>
 
                     <hr class="border-secondary my-4">
 
@@ -373,7 +423,6 @@
                 </div>
             </div>
 
-            <!-- GESTIÓN DE USUARIOS ACTIVOS (SIN CATEGORÍA NI CHECK, ORDENADOS POR ÚLTIMA HORA) -->
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>👥 Gestión de Usuarios Activos</span>
