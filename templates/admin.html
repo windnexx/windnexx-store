@@ -85,7 +85,10 @@
 
         {% elif seccion == 'soporte' %}
             <div class="card border-secondary">
-                <div class="card-header fw-bold bg-primary text-white">🎧 Bandeja de Entrada de Soporte y Chats</div>
+                <div class="card-header fw-bold bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span>🎧 Bandeja de Entrada de Soporte y Chats</span>
+                    <span class="badge bg-light text-dark">{{ mensajes_soporte|length }} mensajes</span>
+                </div>
                 <div class="card-body">
                     {% if mensajes_soporte %}
                         <div class="table-responsive">
@@ -97,7 +100,7 @@
                                         <th>Mensaje</th>
                                         <th>Adjunto</th>
                                         <th>Estado</th>
-                                        <th>Acción</th>
+                                        <th class="text-end">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -119,12 +122,14 @@
                                         <td>
                                             <span class="badge {{ 'bg-success' if msj.estado == 'Atendido' else 'bg-warning text-dark' }}">{{ msj.estado }}</span>
                                         </td>
-                                        <td>
+                                        <td class="text-end">
                                             {% if msj.estado == 'Pendiente' %}
-                                                <a href="{{ url_for('soporte_atendido', id=msj.id) }}" class="btn btn-success btn-sm">Marcar Atendido</a>
+                                                <a href="{{ url_for('soporte_atendido', id=msj.id) }}" class="btn btn-success btn-sm me-1">Marcar Atendido</a>
                                             {% else %}
-                                                <span class="text-secondary small">Completado</span>
+                                                <span class="text-secondary small me-1">Completado</span>
                                             {% endif %}
+                                            <!-- BOTÓN X PARA ELIMINAR EL MENSAJE -->
+                                            <a href="{{ url_for('eliminar_soporte', id=msj.id) }}" class="btn btn-sm btn-danger fw-bold" title="Eliminar mensaje" onclick="return confirm('¿Estás seguro de eliminar este mensaje?')">✕</a>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -132,7 +137,7 @@
                             </table>
                         </div>
                     {% else %}
-                        <p class="text-center text-secondary py-4">No hay mensajes de soporte pendientes.</p>
+                        <p class="text-center text-secondary py-4">No hay mensajes de soporte.</p>
                     {% endif %}
                 </div>
             </div>
@@ -211,7 +216,7 @@
                 </div>
             </div>
 
-            <!-- ARCHIVO HISTÓRICO EN ACORDEÓN POR FECHAS (COLAPSADO EN BOTONES) -->
+            <!-- ARCHIVO HISTÓRICO EN ACORDEÓN POR FECHAS -->
             <div class="card shadow-sm border-secondary">
                 <div class="card-header bg-dark text-white fw-bold">📁 Archivo Histórico de Días Anteriores (Haz clic en una fecha para ver)</div>
                 <div class="card-body">

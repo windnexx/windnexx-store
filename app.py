@@ -1,12 +1,20 @@
 import os
 import re
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from io import BytesIO
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from sqlalchemy import text
+
+# Intentar importar pandas para excel, sino continuar sin él de forma segura
+try:
+    import pandas as pd
+    EXCEL_DISPONIBLE = True
+except ImportError:
+    EXCEL_DISPONIBLE = False
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
@@ -50,6 +58,11 @@ class Usuario(db.Model):
     codigo_referido = db.Column(db.String(20), unique=True, nullable=True)
     referido_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
     rango = db.Column(db.String(20), default='Bronce')
+
+# Modelo de Configuración General / Publicidad
+class ConfiguracionGlobal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    anuncio_publicidad = db.Column(db.Text, default='¡Bienvenidos a WINDNEXX Store! Aprovecha los mejores descuentos.')
 
 # Modelo de Código Promocional
 class CodigoPromo(db.Model):
@@ -112,27 +125,11 @@ class MensajeSoporte(db.Model):
 with app.app_context():
     db.create_all()
     
-    try:
-        with db.engine.connect() as connection:
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS confirmado BOOLEAN DEFAULT FALSE;'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS categoria VARCHAR(20) DEFAULT \'Cliente\';'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS solicitud_reset BOOLEAN DEFAULT FALSE;'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS ultima_actividad TIMESTAMP;'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS codigo_referido VARCHAR(20);'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS referido_por_id INTEGER;'))
-            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS rango VARCHAR(20) DEFAULT \'Bronce\';'))
-            connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
-            connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
-            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_limite VARCHAR(20) DEFAULT \'ilimitado\';'))
-            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS max_usos_primeras INTEGER DEFAULT 0;'))
-            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS usos_actuales INTEGER DEFAULT 0;'))
-            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS es_premio_referido BOOLEAN DEFAULT FALSE;'))
-            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS propietario_id INTEGER;'))
-            connection.commit()
-    except Exception as e:
-        print("Aviso al verificar columnas en la BD:", e)
-    
+    if not ConfiguracionGlobal.query.first():
+        conf_g = ConfiguracionGlobal(anuncio_publicidad='¡Aprovecha los mejores descuentos en productos de Free Fire!')
+        db.session.add(conf_g)
+        db.session.commit()
+
     if not ConfiguracionReferido.query.first():
         conf_inicial = ConfiguracionReferido(nombre_premio='Cupón de Recompensa de Referido', descuento_porcentaje=6.0)
         db.session.add(conf_inicial)
@@ -145,7 +142,7 @@ with app.app_context():
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
-            nombre='Administrador Windnexx',
+            nombre='Administrador Nomar',
             correo='windnexx@gmail.com',
             telefono='999999999',
             password=generate_password_hash('2244Nexxxx'),
@@ -350,6 +347,25 @@ def enviar_soporte():
         return redirect(url_for('cliente_home', seccion='atencion_cliente'))
     return redirect(url_for('login'))
 
+@app.route('/admin/soporte/eliminar/<int:id>')
+def eliminar_soporte(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    msj = MensajeSoporte.query.get_or_404(id)
+    
+    if msj.imagen:
+        path_imagen = os.path.join(app.config['UPLOAD_FOLDER'], msj.imagen)
+        if os.path.exists(path_imagen):
+            try:
+                os.remove(path_imagen)
+            except:
+                pass
+                
+    db.session.delete(msj)
+    db.session.commit()
+    flash('Mensaje de soporte eliminado correctamente.', 'info')
+    return redirect(url_for('admin_panel', seccion='soporte'))
+
 @app.route('/recuperar', methods=['GET', 'POST'])
 def recuperar_password():
     if request.method == 'POST':
@@ -377,13 +393,13 @@ def admin_panel():
     seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
     
     usuarios_pendientes = Usuario.query.filter_by(confirmado=False, solicitud_reset=False).all()
-    # Ordenar usuarios confirmados por última actividad de forma descendente (el más reciente primero)
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').order_by(Usuario.ultima_actividad.desc().nullslast()).all()
     
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
     registros_referidos = RegistroReferido.query.all()
     config_referido = ConfiguracionReferido.query.first()
+    config_global = ConfiguracionGlobal.query.first()
     mensajes_soporte = MensajeSoporte.query.order_by(MensajeSoporte.id.desc()).all()
     
     limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
@@ -403,8 +419,27 @@ def admin_panel():
         fecha_item = getattr(p, 'solo_fecha', hoy_str)
         if fecha_item != hoy_str:
             if fecha_item not in historicos_agrupados:
-                historicos_agrupados[fecha_item] = []
-            historicos_agrupados[fecha_item].append(p)
+                historicos_agrupados[fecha_item] = {'pedidos': [], 'total_monto': 0.0, 'total_fragmentos': 0}
+            
+            historicos_agrupados[fecha_item]['pedidos'].append(p)
+            historicos_agrupados[fecha_item]['total_monto'] += (p.total + (p.descuento_aplicado or 0.0))
+            
+            m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
+            if m_frag:
+                historicos_agrupados[fecha_item]['total_fragmentos'] += int(m_frag.group(1))
+
+    total_monto_hoy = sum([(p.total + (p.descuento_aplicado or 0.0)) for p in pedidos_hoy])
+    total_frag_hoy = 0
+    for p in pedidos_hoy:
+        m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
+        if m_frag:
+            total_frag_hoy += int(m_frag.group(1))
+    
+    info_hoy = {
+        'pedidos': pedidos_hoy,
+        'total_monto': total_monto_hoy,
+        'total_fragmentos': total_frag_hoy
+    }
     
     return render_template(
         'admin.html', 
@@ -414,15 +449,62 @@ def admin_panel():
         codigos_promo=codigos_promo,
         registros_referidos=registros_referidos,
         config_referido=config_referido,
+        config_global=config_global,
         mensajes_soporte=mensajes_soporte,
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
-        pedidos_hoy=pedidos_hoy,
+        info_hoy=info_hoy,
         historicos_agrupados=historicos_agrupados,
         seccion=seccion_admin,
         Usuario=Usuario
     )
+
+@app.route('/admin/actualizar_publicidad', methods=['POST'])
+def actualizar_publicidad():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    
+    nuevo_texto = request.form.get('anuncio_publicidad', '').strip()
+    conf = ConfiguracionGlobal.query.first()
+    if not conf:
+        conf = ConfiguracionGlobal()
+        db.session.add(conf)
+    
+    conf.anuncio_publicidad = nuevo_texto
+    db.session.commit()
+    flash('¡Anuncio de publicidad actualizado exitosamente!', 'success')
+    return redirect(url_for('admin_panel', seccion='codigos_promo'))
+
+@app.route('/admin/exportar_excel/<fecha>')
+def exportar_excel(fecha):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+        
+    pedidos = Pedido.query.filter_by(estado='Completado', solo_fecha=fecha).all()
+    
+    data = []
+    for p in pedidos:
+        data.append({
+            'Fecha': p.fecha,
+            'Cliente': p.nombre_cliente,
+            'ID Destino': p.jugador_id,
+            'Detalle': p.detalle,
+            'Total (S/)': p.total,
+            'Operación Yape': p.codigo_operacion
+        })
+        
+    if EXCEL_DISPONIBLE:
+        df = pd.DataFrame(data)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Ventas')
+        output.seek(0)
+        filename = f"Ventas_WindNexx_{fecha.replace('/', '-')}.xlsx"
+        return send_file(output, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    else:
+        flash('Librería Pandas no instalada en el servidor para generar Excel.', 'danger')
+        return redirect(url_for('admin_panel', seccion='historial_envios'))
 
 @app.route('/admin/soporte/atendido/<int:id>')
 def soporte_atendido(id):
@@ -735,6 +817,7 @@ def cliente_home():
                         db.session.add(nuevo_cupon_ref)
     db.session.commit()
 
+    config_global = ConfiguracionGlobal.query.first()
     historial_compras = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).all()
         
     total_general = 0
@@ -762,6 +845,7 @@ def cliente_home():
         'cliente_home.html', 
         nombre=session.get('nombre'), 
         usuario=usuario_actual,
+        config_global=config_global,
         total_pases=total_pases,
         total_fragmentos=total_fragmentos,
         total_cajas=total_cajas,
@@ -858,7 +942,7 @@ def preparar_pago():
         
     jugador_id = request.form.get('jugador_id', '').strip()
     if not jugador_id:
-        flash('Debes ingresar el ID de cuenta del jugador.', 'danger')
+        flash('Debes ingresar el ID del jugador.', 'danger')
         return redirect(url_for('cliente_home', seccion='catalogo'))
         
     session['jugador_id_temp'] = jugador_id
