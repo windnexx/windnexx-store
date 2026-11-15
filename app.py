@@ -196,7 +196,7 @@ def api_estado_usuarios():
     resultado = {}
     for u in usuarios:
         en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
-        ultima_str = u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else None
+        ultima_str = u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else "Nunca conectado"
         resultado[u.id] = {
             "online": en_linea,
             "ultima": ultima_str
@@ -377,7 +377,9 @@ def admin_panel():
     seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
     
     usuarios_pendientes = Usuario.query.filter_by(confirmado=False, solicitud_reset=False).all()
-    usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
+    # Ordenar usuarios confirmados por última actividad de forma descendente (el más reciente primero)
+    usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').order_by(Usuario.ultima_actividad.desc().nullslast()).all()
+    
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
     registros_referidos = RegistroReferido.query.all()
@@ -555,21 +557,6 @@ def eliminar_solicitud_reset(id):
     usuario.solicitud_reset = False
     db.session.commit()
     flash('Solicitud de restablecimiento eliminada.', 'info')
-    return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
-
-@app.route('/admin/actualizar_categoria/<int:id>', methods=['POST'])
-def actualizar_categoria(id):
-    if 'usuario_id' not in session or session.get('rol') != 'admin':
-        return redirect(url_for('login'))
-        
-    usuario = Usuario.query.get_or_404(id)
-    nueva_categoria = request.form.get('categoria')
-    
-    if nueva_categoria in ['Supercliente', 'Cliente', 'Otros']:
-        usuario.categoria = nueva_categoria
-        db.session.commit()
-        flash(f'Categoría de {usuario.nombre} actualizada a {nueva_categoria}.', 'success')
-        
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
 @app.route('/admin/pasar_recargando/<int:id>')

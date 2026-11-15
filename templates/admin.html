@@ -373,6 +373,7 @@
                 </div>
             </div>
 
+            <!-- GESTIÓN DE USUARIOS ACTIVOS (SIN CATEGORÍA NI CHECK, ORDENADOS POR ÚLTIMA HORA) -->
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>👥 Gestión de Usuarios Activos</span>
@@ -386,8 +387,7 @@
                                     <th>Nombre</th>
                                     <th>Correo</th>
                                     <th>Teléfono</th>
-                                    <th>Estado</th>
-                                    <th>Categoría</th>
+                                    <th>Última Hora en Línea</th>
                                     <th>Rango</th>
                                     <th class="text-end">Acción</th>
                                 </tr>
@@ -400,20 +400,12 @@
                                     <td>{{ u.telefono or 'No registrado' }}</td>
                                     <td id="estado-usuario-{{ u.id }}">
                                         {% if u.en_linea %}
-                                            <span class="badge bg-success">🟢 En línea</span>
+                                            <span class="badge bg-success">🟢 En línea ahora</span>
+                                        {% elif u.ultima_actividad %}
+                                            <span class="text-secondary small">{{ u.ultima_actividad.strftime('%d/%m/%Y %H:%M') }}</span>
                                         {% else %}
-                                            <span class="badge bg-secondary">⚫ Desconectado</span>
+                                            <span class="text-muted small">Nunca conectado</span>
                                         {% endif %}
-                                    </td>
-                                    <td>
-                                        <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST" class="d-inline-flex gap-1">
-                                            <select name="categoria" class="form-select form-select-sm" style="width: 120px;">
-                                                <option value="Cliente" {% if u.categoria == 'Cliente' %}selected{% endif %}>Cliente</option>
-                                                <option value="Supercliente" {% if u.categoria == 'Supercliente' %}selected{% endif %}>Supercliente</option>
-                                                <option value="Otros" {% if u.categoria == 'Otros' %}selected{% endif %}>Otros</option>
-                                            </select>
-                                            <button type="submit" class="btn btn-sm btn-outline-info">✓</button>
-                                        </form>
                                     </td>
                                     <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
                                     <td class="text-end">
@@ -504,12 +496,16 @@ setInterval(() => {
     fetch('/api/estado-usuarios')
         .then(res => res.json())
         .then(data => {
-            for (const [id, online] of Object.entries(data)) {
+            for (const [id, info] of Object.entries(data)) {
                 const celda = document.getElementById(`estado-usuario-${id}`);
                 if (celda) {
-                    celda.innerHTML = online
-                        ? '<span class="badge bg-success">🟢 En línea</span>'
-                        : '<span class="badge bg-secondary">⚫ Desconectado</span>';
+                    if (info.online) {
+                        celda.innerHTML = '<span class="badge bg-success">🟢 En línea ahora</span>';
+                    } else if (info.ultima) {
+                        celda.innerHTML = `<span class="text-secondary small">${info.ultima}</span>`;
+                    } else {
+                        celda.innerHTML = '<span class="text-muted small">Nunca conectado</span>';
+                    }
                 }
             }
         })

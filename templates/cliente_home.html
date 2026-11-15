@@ -43,7 +43,7 @@
                         
                         {% if usuario.rango == 'Plata' %}
                             <img src="{{ url_for('static', filename='plata.png') }}" class="mb-2" style="width: 70px; height: 70px; object-fit: contain;" alt="Rango Plata" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112946.png'">
-                            <h4 class="text-primary fw-bold">Rango Plata 🥈</h4>
+                            <h4 class="fw-bold" style="color: var(--accent-cyan);">Rango Plata 🥈</h4>
                         {% else %}
                             <img src="{{ url_for('static', filename='bronce.png') }}" class="mb-2" style="width: 70px; height: 70px; object-fit: contain;" alt="Rango Bronce" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112944.png'">
                             <h4 class="text-warning fw-bold">Rango Bronce 🥉</h4>
@@ -54,17 +54,17 @@
                                 <span>Progreso a Plata: {{ puntos_fragmentos }} / {{ meta_rango }} Fragmentos</span>
                                 <span>{{ progreso_porcentaje }}%</span>
                             </div>
-                            <div class="progress" style="height: 15px;">
-                                <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ progreso_porcentaje }}%;" aria-valuenow="{{ progreso_porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress" style="height: 15px; background: rgba(255,255,255,0.05);">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: {{ progreso_porcentaje }}%; background: linear-gradient(135deg, #06b6d4, #10b981);" aria-valuenow="{{ progreso_porcentaje }}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
-                            <div class="form-text mt-1 text-muted small">Al acumular 5000 fragmentos (o su valor equivalente) en compras, tu cuenta asciende a Rango Plata.</div>
+                            <div class="form-text mt-1 text-secondary small">Al acumular 5000 fragmentos (o su valor equivalente) en compras, tu cuenta asciende a Rango Plata.</div>
                         </div>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="p-3 bg-light rounded border h-100">
-                                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Datos de la Cuenta</h6>
+                                <h6 class="fw-bold text-light border-bottom pb-2 mb-3">Datos de la Cuenta</h6>
                                 <p class="mb-2"><strong>Nombre:</strong> {{ usuario.nombre }}</p>
                                 <p class="mb-2"><strong>Correo:</strong> {{ usuario.correo }}</p>
                                 <p class="mb-0"><strong>Teléfono:</strong> {{ usuario.telefono if usuario.telefono else 'No registrado' }}</p>
@@ -73,9 +73,9 @@
 
                         <div class="col-md-6">
                             <div class="p-3 bg-light rounded border h-100">
-                                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">Estadísticas Totales Compradas</h6>
+                                <h6 class="fw-bold text-light border-bottom pb-2 mb-3">Estadísticas Totales Compradas</h6>
                                 <p class="mb-2"><strong>Total Pases Comprados:</strong> <span class="badge bg-primary">{{ total_pases }}</span></p>
-                                <p class="mb-2"><strong>Total Fragmentos Comprados:</strong> <span class="badge bg-info text-dark">{{ total_fragmentos }}</span></p>
+                                <p class="mb-2"><strong>Total Fragmentos Comprados:</strong> <span class="badge text-dark" style="background-color: var(--accent-cyan);">{{ total_fragmentos }}</span></p>
                                 <p class="mb-0"><strong>Total Cajas Compradas:</strong> <span class="badge bg-secondary">{{ total_cajas }}</span></p>
                             </div>
                         </div>
@@ -90,8 +90,8 @@
                     🤝 Sistema de Amigo Referido
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info">
-                        <h6 class="fw-bold">¿Cómo funciona?</h6>
+                    <div class="alert alert-info border-0" style="background: rgba(6, 182, 212, 0.1); color: var(--text-main);">
+                        <h6 class="fw-bold" style="color: var(--accent-cyan);">¿Cómo funciona?</h6>
                         <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren el valor equivalente a <strong>1456 fragmentos</strong> (en fragmentos, cajas o pases), ¡recibirás tu cupón de recompensa exclusivo automáticamente!</p>
                     </div>
 
@@ -106,7 +106,7 @@
                     {% if not usuario.referido_por_id %}
                         <form action="{{ url_for('cliente_home') }}" method="GET" class="p-3 bg-light rounded border mb-4">
                             <input type="hidden" name="seccion" value="amigo_referidos">
-                            <label class="form-label fw-bold small text-dark">¿Te invitó un amigo? Ingresa su código aquí (Solo cuentas nuevas):</label>
+                            <label class="form-label fw-bold small text-light">¿Te invitó un amigo? Ingresa su código aquí (Solo cuentas nuevas):</label>
                             <div class="input-group input-group-sm w-75">
                                 <input type="text" name="codigo_patrocinador" class="form-control" placeholder="Ej. WIND-1-ABCD" required>
                                 <button class="btn btn-dark fw-bold" type="submit">Vincular Código</button>
@@ -118,7 +118,7 @@
                         </div>
                     {% endif %}
 
-                    <h6 class="fw-bold text-dark mb-3">📋 Historial de Mis Amigos Referidos</h6>
+                    <h6 class="fw-bold text-light mb-3">📋 Historial de Mis Amigos Referidos</h6>
                     {% if mis_referidos %}
                         <div class="table-responsive mb-3">
                             <table class="table table-sm table-bordered align-middle">
@@ -159,15 +159,15 @@
                                 {% set mi_cupon_exclusivo = CodigoPromo.query.filter_by(propietario_id=usuario.id, es_premio_referido=True).first() %}
                                 {% if mi_cupon_exclusivo %}
                                     <p class="small mb-1">Tu código de cupón de recompensa exclusivo es:</p>
-                                    <span class="badge bg-dark fs-5 px-3 py-2">{{ mi_cupon_exclusivo.codigo }}</span>
-                                    <div class="form-text text-dark small mt-1">Este cupón es personal e intransferible. Aplícalo en tu carrito.</div>
+                                    <span class="badge bg-dark fs-5 px-3 py-2 text-cyan" style="color: var(--accent-cyan);">{{ mi_cupon_exclusivo.codigo }}</span>
+                                    <div class="form-text text-light small mt-1">Este cupón es personal e intransferible. Aplícalo en tu carrito.</div>
                                 {% else %}
-                                    <p class="small mb-0 text-muted">Tu cupón se está generando en el sistema...</p>
+                                    <p class="small mb-0 text-secondary">Tu cupón se está generando en el sistema...</p>
                                 {% endif %}
                             </div>
                         {% endif %}
                     {% else %}
-                        <div class="alert alert-light border text-center small text-muted py-3">
+                        <div class="alert alert-light border text-center small text-secondary py-3" style="background: rgba(255,255,255,0.02);">
                             Aún no has invitado a ningún amigo. ¡Comparte tu código arriba para empezar!
                         </div>
                     {% endif %}
@@ -188,14 +188,14 @@
         {% elif seccion == 'catalogo' %}
             <div class="row">
                 <div class="col-md-7">
-                    <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
+                    <h4 class="mb-3 fw-bold" style="color: var(--accent-cyan);">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
                         
                         <!-- FRAGMENTOS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
-                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
-                                <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Fragmentos">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger shadow" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">-17%</span>
+                                <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto mt-2" style="height: 80px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(6,182,212,0.4));" alt="Fragmentos" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112946.png'">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
                                     <h6 class="card-title fw-bold mb-2">Fragmentos</h6>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
@@ -213,8 +213,8 @@
                         <!-- CAJAS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
-                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
-                                <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Cajas">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger shadow" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">-17%</span>
+                                <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto mt-2" style="height: 80px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(16,185,129,0.4));" alt="Cajas" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112944.png'">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
                                     <h6 class="card-title fw-bold mb-2">Cajas</h6>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
@@ -232,8 +232,8 @@
                         <!-- PASES -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
-                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
-                                <img src="{{ url_for('static', filename='pases.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Pases">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger shadow" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">-17%</span>
+                                <img src="{{ url_for('static', filename='pases.png') }}" class="card-img-top mx-auto mt-2" style="height: 80px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(236,72,153,0.4));" alt="Pases" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3112/3112946.png'">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
                                     <h6 class="card-title fw-bold mb-2">Pases</h6>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
@@ -248,13 +248,17 @@
                             </div>
                         </div>
 
-                        <!-- NUEVO PRODUCTO: DIAMANTES EN MANTENIMIENTO -->
+                        <!-- DIAMANTES EN MANTENIMIENTO (CON CANTIDAD EN 0 Y TÍTULO DIAMANTES) -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
-                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">MANTENIMIENTO</span>
-                                <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-warning text-dark shadow" style="font-size: 9px; margin-top: 10px; margin-left: 35px;">MANTENIMIENTO</span>
+                                <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-2" style="height: 80px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(59,130,246,0.3));" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold mb-2 text-muted">Diamantes</h6>
+                                    <h6 class="card-title fw-bold mb-2">Diamantes</h6>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <span class="input-group-text">Cant.</span>
+                                        <input type="text" class="form-control text-center" value="0" disabled>
+                                    </div>
                                     <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" disabled>🛠️ En Mantenimiento</button>
                                 </div>
                             </div>
@@ -275,9 +279,9 @@
                                         {% set sub_17 = item.subtotal * 1.17 %}
                                         <li class="list-group-item d-flex justify-content-between align-items-center small">
                                             <div>
-                                                <span class="fw-bold">{{ item.producto }}</span> <span class="text-muted">(x{{ item.cantidad }})</span>
+                                                <span class="fw-bold">{{ item.producto }}</span> <span class="text-secondary">(x{{ item.cantidad }})</span>
                                             </div>
-                                            <span class="text-success fw-bold">S/ {{ "%.2f"|format(sub_17) }}</span>
+                                            <span class="fw-bold" style="color: var(--accent-cyan);">S/ {{ "%.2f"|format(sub_17) }}</span>
                                         </li>
                                     {% endfor %}
                                 </ul>
@@ -286,10 +290,10 @@
                                     <label class="form-label fw-bold text-secondary" style="font-size: 11px;">Usar código promocional:</label>
                                     <div class="input-group input-group-sm">
                                         <input type="text" name="codigo_promo" class="form-control" placeholder="Ingresa código" value="{{ codigo_aplicado or '' }}">
-                                        <button class="btn btn-outline-dark fw-bold" type="submit">Aplicar</button>
+                                        <button class="btn btn-outline-light fw-bold" type="submit">Aplicar</button>
                                     </div>
                                     {% if codigo_aplicado %}
-                                        <div class="text-success small mt-1 fw-bold">✓ Código "{{ codigo_aplicado }}" activo (-S/ {{ descuento_monto }})</div>
+                                        <div class="small mt-1 fw-bold" style="color: var(--accent-cyan);">✓ Código "{{ codigo_aplicado }}" activo (-S/ {{ descuento_monto }})</div>
                                     {% endif %}
                                 </form>
 
@@ -297,40 +301,41 @@
                                 {% set descuento_17 = total_general * 0.17 %}
 
                                 <div class="mb-3 p-2 bg-light rounded border small">
-                                    <div class="d-flex justify-content-between text-muted">
+                                    <div class="d-flex justify-content-between text-secondary">
                                         <span>Subtotal:</span>
                                         <span>S/ {{ "%.2f"|format(subtotal_17) }}</span>
                                     </div>
                                     
-                                    <div class="d-flex justify-content-between text-muted">
+                                    <div class="d-flex justify-content-between text-secondary">
                                         <span>Ciber Wow WindNexx:</span>
                                         <span class="text-danger">-S/ {{ "%.2f"|format(descuento_17) }}</span>
                                     </div>
 
                                     {% if descuento_monto > 0 %}
-                                    <div class="d-flex justify-content-between text-success">
+                                    <div class="d-flex justify-content-between" style="color: var(--accent-cyan);">
                                         <span>Descuento (Cupón):</span>
                                         <span>-S/ {{ descuento_monto }}</span>
                                     </div>
                                     {% endif %}
 
-                                    <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
-                                        <span class="fw-bold text-dark">Total a Pagar:</span>
+                                    <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1" style="border-color: rgba(255,255,255,0.1) !important;">
+                                        <span class="fw-bold text-light">Total a Pagar:</span>
                                         <span class="fs-5 fw-bold text-danger">S/ {{ total_final }}</span>
                                     </div>
                                 </div>
 
                                 <form action="{{ url_for('preparar_pago') }}" method="POST">
                                     <div class="mb-3">
-                                        <label class="form-label small fw-bold text-secondary">ID de cuenta del jugador:</label>
-                                        <input type="text" name="jugador_id" class="form-control form-control-sm" placeholder="Ingresa tu ID de destino" required>
+                                        <!-- ID del jugador con placeholder "ID" sombreado en el centro -->
+                                        <label class="form-label small fw-bold text-secondary">ID del jugador:</label>
+                                        <input type="text" name="jugador_id" class="form-control form-control-sm text-center" placeholder="ID" required>
                                     </div>
-                                    <button type="submit" class="btn btn-success w-100 fw-bold btn-sm mb-2">Pagar</button>
+                                    <button type="submit" class="btn btn-success w-100 fw-bold btn-sm mb-2 shadow">Pagar</button>
                                 </form>
 
                                 <a href="{{ url_for('vaciar_carrito') }}" class="btn btn-outline-danger btn-sm w-100">Vaciar Carrito</a>
                             {% else %}
-                                <p class="text-muted text-center my-3 small">0 artículos seleccionados</p>
+                                <p class="text-secondary text-center my-3 small">0 artículos seleccionados</p>
                                 <button class="btn btn-secondary w-100 btn-sm" disabled>Carrito Vacío</button>
                             {% endif %}
                         </div>
@@ -341,7 +346,7 @@
         {% elif seccion == 'pago_yape' %}
             <div class="row g-4 align-items-start">
                 <div class="col-md-5">
-                    <div class="p-4 rounded shadow-sm text-center" style="background-color: #6a1b9a;">
+                    <div class="p-4 rounded shadow-lg text-center border" style="background-color: #5a127a; border-color: rgba(255,255,255,0.15) !important;">
                         <p class="text-white fw-bold mb-3 small">Escanea el código QR con tu aplicación Yape:</p>
                         <div class="mb-3">
                             <img src="{{ url_for('static', filename='yape_qr.png') }}" class="img-fluid w-100 rounded shadow" alt="QR Yape Gigante">
@@ -357,16 +362,16 @@
                         </div>
                         <div class="card-body p-4">
                             <div class="mb-3 p-3 bg-light rounded border">
-                                <p class="fw-bold text-dark mb-2 small">Resumen del Pedido:</p>
-                                <ul class="mb-3 ps-3 small text-muted">
+                                <p class="fw-bold text-light mb-2 small">Resumen del Pedido:</p>
+                                <ul class="mb-3 ps-3 small text-secondary">
                                     {% for item in carrito %}
-                                        <li>{{ item.producto }} (x{{ item.cantidad }}) - <span class="text-success fw-bold">S/ {{ item.subtotal }}</span></li>
+                                        <li>{{ item.producto }} (x{{ item.cantidad }}) - <span class="fw-bold" style="color: var(--accent-cyan);">S/ {{ item.subtotal }}</span></li>
                                     {% endfor %}
                                 </ul>
 
-                                <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-2">
+                                <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-2" style="border-color: rgba(255,255,255,0.1) !important;">
                                     <span class="fw-bold text-secondary small">ID de Jugador Destino:</span>
-                                    <span class="badge bg-dark fs-6 px-3 py-2">{{ session.get('jugador_id_temp') }}</span>
+                                    <span class="badge bg-dark fs-6 px-3 py-2 text-cyan" style="color: var(--accent-cyan);">{{ session.get('jugador_id_temp') }}</span>
                                 </div>
 
                                 <div class="d-flex justify-content-between align-items-center pt-1 fs-5 text-danger fw-bold">
@@ -378,17 +383,17 @@
                             <form action="{{ url_for('pagar_yape') }}" method="POST">
                                 <div class="row g-2 mb-3">
                                     <div class="col-md-5">
-                                        <label class="form-label fw-bold text-dark" style="font-size: 11px;">Últimos 3 dígitos del número:</label>
-                                        <input type="text" name="telefono_digitos" class="form-control text-center fw-bold text-primary" maxlength="3" placeholder="Ej. 842" required>
+                                        <label class="form-label fw-bold text-light" style="font-size: 11px;">Últimos 3 dígitos del número:</label>
+                                        <input type="text" name="telefono_digitos" class="form-control text-center fw-bold text-cyan" maxlength="3" placeholder="Ej. 842" required style="color: var(--accent-cyan) !important;">
                                     </div>
                                     <div class="col-md-7">
-                                        <label class="form-label fw-bold text-dark" style="font-size: 11px;">Número de Operación Yape:</label>
-                                        <input type="text" name="codigo_operacion" class="form-control text-center fw-bold text-primary" placeholder="Nro. operación" required autofocus>
+                                        <label class="form-label fw-bold text-light" style="font-size: 11px;">Número de Operación Yape:</label>
+                                        <input type="text" name="codigo_operacion" class="form-control text-center fw-bold text-cyan" placeholder="Nro. operación" required autofocus style="color: var(--accent-cyan) !important;">
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2">
                                     <a href="{{ url_for('cliente_home', seccion='catalogo') }}" class="btn btn-outline-secondary w-50 fw-bold btn-sm">Regresar al Carrito</a>
-                                    <button type="submit" class="btn btn-success w-50 fw-bold btn-sm">Pagar</button>
+                                    <button type="submit" class="btn btn-success w-50 fw-bold btn-sm shadow">Pagar</button>
                                 </div>
                             </form>
                         </div>
@@ -405,7 +410,6 @@
                     <div class="alert alert-info border-secondary bg-dark text-light small">
                         Envía tus consultas, dudas o reportes de pago adjuntando capturas. Nuestro equipo te responderá rápidamente.
                     </div>
-                    <!-- RUTA CORREGIDA CON BARRA INICIAL -->
                     <form action="{{ url_for('enviar_soporte') }}" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="nombre" value="{{ usuario.nombre }}">
                         <input type="hidden" name="correo" value="{{ usuario.correo }}">
@@ -419,7 +423,7 @@
                             <label class="form-label fw-bold small">Adjuntar captura o foto (Opcional):</label>
                             <input type="file" name="imagen" class="form-control" accept="image/*">
                         </div>
-                        <button type="submit" class="btn btn-success fw-bold w-100"><i class="bi bi-send-fill"></i> Enviar Mensaje al Administrador</button>
+                        <button type="submit" class="btn btn-success fw-bold w-100 shadow"><i class="bi bi-send-fill"></i> Enviar Mensaje al Administrador</button>
                     </form>
                 </div>
             </div>
@@ -460,7 +464,7 @@
                         <div class="text-center py-5">
                             <i class="bi bi-clock-history fs-1 text-secondary mb-3"></i>
                             <h5 class="fw-bold">Aún no registras compras anteriores</h5>
-                            <p class="text-muted small">Tus transacciones pagadas con Yape aparecerán aquí detalladas.</p>
+                            <p class="text-secondary small">Tus transacciones pagadas con Yape aparecerán aquí detalladas.</p>
                         </div>
                     {% endif %}
                 </div>
