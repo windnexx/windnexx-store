@@ -61,7 +61,6 @@
                         </div>
                     </div>
 
-                    <!-- INFORMACIÓN DETALLADA DE LA CUENTA RESTAURADA -->
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="p-3 bg-light rounded border h-100">
@@ -249,6 +248,18 @@
                             </div>
                         </div>
 
+                        <!-- NUEVO PRODUCTO: DIAMANTES EN MANTENIMIENTO -->
+                        <div class="col">
+                            <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
+                                <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">MANTENIMIENTO</span>
+                                <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
+                                <div class="card-body d-flex flex-column justify-content-between p-2">
+                                    <h6 class="card-title fw-bold mb-2 text-muted">Diamantes</h6>
+                                    <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" disabled>🛠️ En Mantenimiento</button>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -394,7 +405,8 @@
                     <div class="alert alert-info border-secondary bg-dark text-light small">
                         Envía tus consultas, dudas o reportes de pago adjuntando capturas. Nuestro equipo te responderá rápidamente.
                     </div>
-                    <form action="{{ url_for('soporte/enviar') }}" method="POST" enctype="multipart/form-data">
+                    <!-- RUTA CORREGIDA CON BARRA INICIAL -->
+                    <form action="{{ url_for('enviar_soporte') }}" method="POST" enctype="multipart/form-data">
                         <input type="hidden" name="nombre" value="{{ usuario.nombre }}">
                         <input type="hidden" name="correo" value="{{ usuario.correo }}">
                         <input type="hidden" name="telefono" value="{{ usuario.telefono }}">
