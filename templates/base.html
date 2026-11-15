@@ -18,18 +18,14 @@
       gtag('config', 'G-H8J7T2TLY6');
     </script>
 
-    <!-- ESTILOS CYBERPUNK NEON & GLASSMORPHISM -->
     <style>
         :root {
-            --bg-base: #04060a;
-            --bg-card: rgba(11, 15, 25, 0.9);
-            --bg-card-solid: #0b0f19;
-            --border-glass: rgba(59, 130, 246, 0.2);
-            --border-glow: rgba(59, 130, 246, 0.5);
-            --accent-cyan: #06b6d4;
+            --bg-base: #06080e;
+            --bg-card: rgba(13, 17, 28, 0.85);
+            --bg-card-solid: #0d111c;
+            --border-glass: rgba(255, 255, 255, 0.07);
             --accent-blue: #3b82f6;
             --accent-purple: #8b5cf6;
-            --accent-pink: #ec4899;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -39,160 +35,109 @@
             color: var(--text-main) !important;
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background-image: 
-                radial-gradient(circle at 10% 10%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 90% 90%, rgba(139, 92, 246, 0.07) 0%, transparent 40%),
-                radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.04) 0%, transparent 60%);
+                radial-gradient(circle at 15% 10%, rgba(59, 130, 246, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 85% 90%, rgba(139, 92, 246, 0.05) 0%, transparent 45%);
             min-height: 100vh;
         }
 
         .navbar {
-            background: rgba(6, 10, 18, 0.95) !important;
-            backdrop-filter: blur(20px);
+            background: rgba(8, 11, 18, 0.9) !important;
+            backdrop-filter: blur(16px);
             border-bottom: 1px solid var(--border-glass) !important;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
         }
 
         .card {
             background: var(--bg-card) !important;
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(16px);
             color: var(--text-main) !important;
             border: 1px solid var(--border-glass) !important;
-            border-radius: 20px !important;
-            box-shadow: 0 15px 35px 0 rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .card:hover {
-            border-color: var(--border-glow) !important;
-            box-shadow: 0 20px 40px -10px rgba(6, 182, 212, 0.2), 0 0 20px rgba(59, 130, 246, 0.15);
-            transform: translateY(-2px);
+            border-radius: 16px !important;
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.4);
+            transition: all 0.25s ease;
         }
 
         .card-header {
-            background: rgba(13, 20, 35, 0.8) !important;
+            background: rgba(15, 22, 36, 0.7) !important;
             border-bottom: 1px solid var(--border-glass) !important;
             color: var(--text-main) !important;
             font-weight: 600;
-            border-top-left-radius: 20px !important;
-            border-top-right-radius: 20px !important;
-            padding: 1.25rem 1.5rem;
+            border-top-left-radius: 16px !important;
+            border-top-right-radius: 16px !important;
+            padding: 1rem 1.25rem;
         }
 
         .list-group-item {
             background-color: transparent !important;
             color: var(--text-muted) !important;
             border: none !important;
-            border-radius: 12px !important;
-            margin-bottom: 8px;
+            border-radius: 10px !important;
+            margin-bottom: 6px;
             font-weight: 500;
-            transition: all 0.25s ease;
-            padding: 12px 18px;
+            transition: all 0.2s ease;
+            padding: 10px 15px;
         }
 
         .list-group-item:hover {
-            background-color: rgba(6, 182, 212, 0.1) !important;
+            background-color: rgba(59, 130, 246, 0.08) !important;
             color: #ffffff !important;
-            transform: translateX(5px);
-            text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+            transform: translateX(3px);
         }
 
         .list-group-item.active {
-            background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6) !important;
+            background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
             color: #ffffff !important;
-            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
             border: none !important;
         }
 
         .form-control, .form-select {
-            background-color: rgba(4, 6, 10, 0.9) !important;
+            background-color: rgba(6, 8, 14, 0.9) !important;
             color: var(--text-main) !important;
-            border: 1px solid rgba(59, 130, 246, 0.25) !important;
-            border-radius: 12px !important;
-            padding: 0.75rem 1.1rem;
-            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 10px !important;
+            padding: 0.65rem 1rem;
         }
 
         .form-control:focus, .form-select:focus {
-            background-color: rgba(4, 6, 10, 0.95) !important;
+            background-color: rgba(6, 8, 14, 0.95) !important;
             color: var(--text-main) !important;
-            border-color: var(--accent-cyan) !important;
-            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.25), 0 0 15px rgba(6, 182, 212, 0.2);
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 600;
-            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
-            transition: all 0.25s;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #0891b2, #2563eb);
-            box-shadow: 0 6px 25px rgba(6, 182, 212, 0.5);
-            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
 
         .btn-success {
             background: linear-gradient(135deg, #10b981, #059669);
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 600;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
-            transition: all 0.25s;
-        }
-        .btn-success:hover {
-            box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
-            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
 
-        .table {
-            color: var(--text-main) !important;
-            border-color: var(--border-glass) !important;
-        }
-
-        .table-light {
-            background-color: rgba(13, 20, 35, 0.9) !important;
-            color: var(--text-muted) !important;
-            border-color: var(--border-glass) !important;
-        }
-
-        .table-striped > tbody > tr:nth-of-type(odd) {
-            background-color: rgba(255, 255, 255, 0.02);
-            color: var(--text-main);
-        }
-
-        .text-dark { color: var(--text-main) !important; }
-        .text-secondary { color: var(--text-muted) !important; }
-        .bg-light { background-color: var(--bg-card-solid) !important; }
+        .table { color: var(--text-main) !important; border-color: var(--border-glass) !important; }
+        .table-light { background-color: rgba(15, 22, 36, 0.8) !important; color: var(--text-muted) !important; }
     </style>
 </head>
 <body>
 
     <nav class="navbar navbar-dark px-4 mb-4">
         <a class="navbar-brand fw-bold text-uppercase tracking-wider d-flex align-items-center gap-2" href="#">
-            <i class="bi bi-cpu-fill fs-4" style="color: var(--accent-cyan);"></i> 
-            <span>WINDNEXX <span class="fs-6" style="color: var(--accent-cyan) !important;">STORE</span></span>
+            <i class="bi bi-cpu-fill text-info fs-4"></i> 
+            <span>WINDNEXX <span class="text-primary fs-6">WORKSPACE</span></span>
         </a>
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center">
             {% if session.get('nombre') %}
-                {% if session.get('rol') == 'admin' %}
-                    <span class="text-white small fw-semibold px-3 py-1.5 rounded-pill" style="background: rgba(6, 182, 212, 0.1); border: 1px solid var(--border-glass);">
-                        <i class="bi bi-shield-check text-info me-1" style="color: var(--accent-cyan) !important;"></i> 
-                        {% if session.get('correo') == 'croldan12345@gmail.com' %}
-                            Bienvenido Carlos
-                        {% elif session.get('correo') == 'windnexx@gmail.com' %}
-                            Bienvenido Omar
-                        {% else %}
-                            Administrador WindNexx
-                        {% endif %}
-                    </span>
-                {% else %}
-                    <a href="{{ url_for('cliente_home', seccion='perfil') }}" class="btn btn-outline-info btn-sm fw-bold px-3 rounded-pill shadow-sm">
-                        <i class="bi bi-person-circle me-1"></i> Perfil
-                    </a>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold px-3 rounded-pill shadow-sm">Cerrar Sesión</a>
+                <span class="text-white me-3 small fw-semibold px-3 py-1.5 rounded-pill" style="background: rgba(255,255,255,0.04); border: 1px solid var(--border-glass);">
+                    <i class="bi bi-person-circle text-info me-1"></i> {{ session.get('nombre') }}
+                </span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold px-3 rounded-pill">Cerrar Sesión</a>
             {% endif %}
         </div>
     </nav>
@@ -201,7 +146,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'danger' else ('success' if category == 'success' else 'info') }} alert-dismissible fade show shadow-lg border-0 mb-4" role="alert" style="background: rgba(11, 15, 25, 0.95); backdrop-filter: blur(16px); border-left: 4px solid var(--accent-cyan) !important; color: #fff;">
+                    <div class="alert alert-{{ 'danger' if category == 'danger' else ('success' if category == 'success' else 'info') }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert" style="background: rgba(13, 17, 28, 0.95); backdrop-filter: blur(12px); border-left: 4px solid #3b82f6 !important; color: #fff;">
                         {{ message }}
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>

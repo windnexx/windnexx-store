@@ -1,248 +1,363 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <!-- Menú Lateral de Administración -->
-        <div class="col-md-3 mb-4">
-            <div class="card bg-dark text-light border-secondary shadow-sm">
-                <div class="card-header bg-secondary bg-opacity-25 border-secondary fw-bold">
-                    <i class="bi bi-shield-lock-fill text-warning"></i> Panel Administrador
-                </div>
-                <div class="list-group list-group-flush bg-dark rounded-bottom">
-                    <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary {% if seccion == 'pedidos_pendientes' %}active{% endif %}">
-                        <i class="bi bi-clock-history me-2"></i> Pedidos Pendientes <span class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
-                    </a>
-                    <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary {% if seccion == 'pedidos_recargando' %}active{% endif %}">
-                        <i class="bi bi-arrow-repeat me-2"></i> Recargando <span class="badge bg-warning text-dark float-end">{{ pedidos_recargando|length }}</span>
-                    </a>
-                    <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary {% if seccion == 'historial_envios' %}active{% endif %}">
-                        <i class="bi bi-check2-all me-2"></i> Historial de Envios
-                    </a>
-                    <a href="{{ url_for('admin_panel', seccion='soporte') }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary {% if seccion == 'soporte' %}active{% endif %}">
-                        <i class="bi bi-headset me-2"></i> Mensajes de Soporte <span class="badge bg-danger float-end">{{ mensajes_soporte|length }}</span>
-                    </a>
-                    <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary {% if seccion == 'codigos_promo' %}active{% endif %}">
-                        <i class="bi bi-tag-fill me-2"></i> Códigos y Publicidad
-                    </a>
-                    <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action bg-dark text-light border-secondary {% if seccion == 'gestion_usuarios' %}active{% endif %}">
-                        <i class="bi bi-people-fill me-2"></i> Gestión de Usuarios <span class="badge bg-info text-dark float-end">{{ confirmados|length }}</span>
-                    </a>
-                    <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action bg-dark text-danger border-secondary">
-                        <i class="bi bi-box-arrow-right me-2"></i> Cerrar Sesión
-                    </a>
-                </div>
+<audio id="timbre-audio" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+</audio>
+
+<div id="banner-activar-audio" class="alert alert-warning text-center fw-bold py-2 mb-3 shadow-lg" style="cursor: pointer; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fde68a;" onclick="activarAudioSistema()">
+  🔊 Haz clic aquí para activar las alertas sonoras y notificaciones en tiempo real (Obligatorio por única vez)
+</div>
+
+<div id="contenedor-notificaciones" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
+
+<div class="row">
+    
+    <div class="col-md-3 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white fw-bold py-3">
+                <i class="bi bi-shield-lock"></i> Panel Administrador
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_pendientes' %}active fw-bold{% endif %}">
+                    📦 Pedidos Pendientes <span class="badge bg-danger float-end">{{ pedidos_validacion|length }}</span>
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_recargando' %}active fw-bold{% endif %}">
+                    ⚡ Recargando <span class="badge bg-warning text-dark float-end">{{ pedidos_recargando|length }}</span>
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action {% if seccion == 'historial_envios' %}active fw-bold{% endif %}">
+                    📋 Historial de Envíos Realizados
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='soporte') }}" class="list-group-item list-group-item-action {% if seccion == 'soporte' %}active fw-bold{% endif %}">
+                    🎧 Mensajes de Soporte <span class="badge bg-danger float-end">{{ mensajes_soporte | selectattr('estado', 'equalto', 'Pendiente') | list | length }}</span>
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action {% if seccion == 'codigos_promo' %}active fw-bold{% endif %}">
+                    🎟️ Códigos y Referidos <span class="badge bg-info text-dark float-end">{{ codigos_promo|length }}</span>
+                </a>
+                <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %}">
+                    👥 Gestión de Usuarios <span class="badge bg-secondary float-end">{{ pendientes|length + solicitudes_reset|length }}</span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="list-group-item list-group-item-action text-danger fw-bold mt-3 border-top">
+                    🚪 Cerrar Sesión
+                </a>
             </div>
         </div>
+    </div>
 
-        <!-- Contenido Principal Dinámico -->
-        <div class="col-md-9">
-            
-            <!-- 1. PEDIDOS PENDIENTES (VALIDACIÓN DE PAGO) -->
-            {% if seccion == 'pedidos_pendientes' %}
-            <div class="card bg-dark text-light border-secondary shadow">
-                <div class="card-header border-secondary fw-bold text-warning">
-                    <i class="bi bi-clock-history"></i> Pedidos en Validación de Pago
+    <div class="col-md-9">
+
+        {% if seccion == 'pedidos_pendientes' %}
+            <div class="card shadow-sm border-primary">
+                <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>📦 Pedidos Pendientes (Validación de Pago Yape)</span>
+                    <span class="badge bg-light text-dark">{{ pedidos_validacion|length }} por validar</span>
                 </div>
-                <div class="card-body">
-                    {% if pedidos_validacion %}
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-dark table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Cliente</th>
-                                    <th>Jugador ID</th>
-                                    <th>Detalle</th>
-                                    <th>Total</th>
-                                    <th>Yape (Dígitos / Operación)</th>
-                                    <th>Acción</th>
-                                </tr>
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador</th><th>Detalle / Productos</th><th>Total</th><th>Promo</th><th>Teléfono</th><th>Operación</th><th class="text-end">Acciones</th></tr>
                             </thead>
                             <tbody>
                                 {% for p in pedidos_validacion %}
                                 <tr>
-                                    <td>#{{ p.id }}</td>
-                                    <td>{{ p.nombre_cliente }}</td>
-                                    <td><code>{{ p.jugador_id }}</code></td>
-                                    <td><small>{{ p.detalle }}</small></td>
-                                    <td class="text-success fw-bold">S/ {{ "%.2f"|format(p.total) }}</td>
-                                    <td>
-                                        <span class="badge bg-secondary">Dígitos: {{ p.telefono_digitos }}</span><br>
-                                        <small class="text-info">Op: {{ p.codigo_operacion }}</small>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-warning fw-bold text-dark mb-1">Validar y Recargar</a>
-                                        <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar pedido?')"><i class="bi bi-trash"></i></a>
+                                    <td>{{ p.fecha }}</td>
+                                    <td class="fw-bold">{{ p.nombre_cliente }}</td>
+                                    <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                    <td>{{ p.detalle }}</td>
+                                    <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                    <td>{{ p.codigo_promo or 'Ninguno' }}</td>
+                                    <td>{{ p.telefono_digitos }}</td>
+                                    <td><code>{{ p.codigo_operacion }}</code></td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('pasar_recargando', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1">✓ Validar</a>
+                                        <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-sm btn-danger">🗑️</a>
                                     </td>
                                 </tr>
+                                {% else %}
+                                <tr><td colspan="9" class="text-center py-4 text-secondary">No hay pagos pendientes.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+        {% elif seccion == 'soporte' %}
+            <div class="card border-secondary">
+                <div class="card-header fw-bold bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span>🎧 Bandeja de Entrada de Soporte y Chats</span>
+                    <span class="badge bg-light text-dark">{{ mensajes_soporte|length }} mensajes</span>
+                </div>
+                <div class="card-body">
+                    {% if mensajes_soporte %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle small">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Usuario / Contacto</th>
+                                        <th>Mensaje</th>
+                                        <th>Adjunto</th>
+                                        <th>Estado</th>
+                                        <th class="text-end">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for msj in mensajes_soporte %}
+                                    <tr>
+                                        <td>{{ msj.fecha }}</td>
+                                        <td>
+                                            <strong>{{ msj.nombre }}</strong><br>
+                                            <small class="text-secondary">{{ msj.correo }} | Tel: {{ msj.telefono }}</small>
+                                        </td>
+                                        <td>{{ msj.mensaje }}</td>
+                                        <td>
+                                            {% if msj.imagen %}
+                                                <a href="{{ url_for('static', filename='uploads/' + msj.imagen) }}" target="_blank" class="btn btn-outline-info btn-sm">Ver Foto</a>
+                                            {% else %}
+                                                <span class="text-secondary">Sin foto</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ 'bg-success' if msj.estado == 'Atendido' else 'bg-warning text-dark' }}">{{ msj.estado }}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            {% if msj.estado == 'Pendiente' %}
+                                                <a href="{{ url_for('soporte_atendido', id=msj.id) }}" class="btn btn-success btn-sm">Marcar Atendido</a>
+                                            {% else %}
+                                                <span class="text-secondary small">Completado</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     {% else %}
-                    <p class="text-muted text-center py-4 mb-0">No hay pagos pendientes de validación en este momento.</p>
+                        <p class="text-center text-secondary py-4">No hay mensajes de soporte.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- 2. PEDIDOS RECARGANDO -->
-            {% elif seccion == 'pedidos_recargando' %}
-            <div class="card bg-dark text-light border-secondary shadow">
-                <div class="card-header border-secondary fw-bold text-info">
-                    <i class="bi bi-arrow-repeat"></i> Pedidos en Proceso de Recarga
-                </div>
-                <div class="card-body">
-                    {% if pedidos_recargando %}
+        {% elif seccion == 'pedidos_recargando' %}
+            <div class="card shadow-sm border-warning">
+                <div class="card-header bg-warning text-dark fw-bold">⚡ Pedidos en Proceso de Recarga</div>
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-dark table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Cliente</th>
-                                    <th>Jugador ID</th>
-                                    <th>Detalle</th>
-                                    <th>Total</th>
-                                    <th>Acción</th>
-                                </tr>
+                        <table class="table table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr><th>Fecha</th><th>Cliente</th><th>ID Jugador</th><th>Detalle</th><th>Operación</th><th class="text-end">Acciones</th></tr>
                             </thead>
                             <tbody>
                                 {% for p in pedidos_recargando %}
                                 <tr>
-                                    <td>#{{ p.id }}</td>
-                                    <td>{{ p.nombre_cliente }}</td>
-                                    <td><code>{{ p.jugador_id }}</code></td>
-                                    <td><small>{{ p.detalle }}</small></td>
-                                    <td class="text-success fw-bold">S/ {{ "%.2f"|format(p.total) }}</td>
-                                    <td>
-                                        <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-success fw-bold">Marcar Completado</a>
+                                    <td>{{ p.fecha }}</td>
+                                    <td class="fw-bold">{{ p.nombre_cliente }}</td>
+                                    <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                    <td>{{ p.detalle }}</td>
+                                    <td><code>{{ p.codigo_operacion }}</code></td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('completar_recarga', id=p.id) }}" class="btn btn-sm btn-primary fw-bold">🚀 Completar</a>
                                     </td>
                                 </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="text-center py-4 text-secondary">No hay recargas en curso.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    {% else %}
-                    <p class="text-muted text-center py-4 mb-0">No hay recargas en proceso actualmente.</p>
-                    {% endif %}
                 </div>
             </div>
 
-            <!-- 3. HISTORIAL DE ENVIOS -->
-            {% elif seccion == 'historial_envios' %}
-            <div class="card bg-dark text-light border-secondary shadow mb-4">
-                <div class="card-header border-secondary fw-bold text-success d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-check2-all"></i> Ventas de Hoy ({{ info_hoy.pedidos|length }} pedidos)</span>
-                    <div>
-                        <span class="badge bg-success me-2">Total Hoy: S/ {{ "%.2f"|format(info_hoy.total_monto) }}</span>
-                        <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-sm btn-outline-warning" onclick="return confirm('¿Archivar las ventas de hoy?')">Archivar Día</a>
-                    </div>
+        {% elif seccion == 'historial_envios' %}
+            <div class="card shadow-sm border-success mb-4">
+                <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span>📋 Historial de Envíos Realizados (Hoy)</span>
+                    <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-sm btn-dark fw-bold" onclick="return confirm('¿Vaciar y archivar el historial de hoy?')">Vaciar y Archivar Hoy</a>
                 </div>
-                <div class="card-body">
-                    {% if info_hoy.pedidos %}
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-dark table-sm table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Hora</th>
-                                    <th>Cliente</th>
-                                    <th>Jugador ID</th>
-                                    <th>Detalle</th>
-                                    <th>Total</th>
-                                </tr>
+                        <table class="table table-striped align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr><th>Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th class="text-end">Acciones</th></tr>
                             </thead>
                             <tbody>
-                                {% for p in info_hoy.pedidos %}
+                                {% for h in pedidos_hoy %}
                                 <tr>
-                                    <td><small>{{ p.fecha }}</small></td>
-                                    <td>{{ p.nombre_cliente }}</td>
-                                    <td><code>{{ p.jugador_id }}</code></td>
-                                    <td><small>{{ p.detalle }}</small></td>
-                                    <td class="text-success fw-bold">S/ {{ "%.2f"|format(p.total) }}</td>
+                                    <td>{{ h.fecha }}</td>
+                                    <td class="fw-bold">{{ h.nombre_cliente }}</td>
+                                    <td>{{ h.jugador_id }}</td>
+                                    <td>{{ h.detalle }}</td>
+                                    <td class="text-success fw-bold">S/ {{ h.total }}</td>
+                                    <td class="text-end"><a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger">🗑️</a></td>
                                 </tr>
+                                {% else %}
+                                <tr><td colspan="6" class="text-center py-4 text-secondary">No hay ventas registradas hoy.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- ARCHIVO HISTÓRICO EN ACORDEÓN -->
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-dark text-white fw-bold">📁 Archivo Histórico de Días Anteriores</div>
+                <div class="card-body">
+                    {% if historicos_agrupados %}
+                        <div class="accordion" id="acordeonHistorial">
+                            {% for fecha_f, lista_pedidos in historicos_agrupados.items() %}
+                                {% set loop_id = loop.index %}
+                                <div class="accordion-item mb-2 border rounded overflow-hidden" style="background: rgba(13, 20, 35, 0.95); border-color: var(--border-glass) !important;">
+                                    <h2 class="accordion-header" id="heading{{ loop_id }}">
+                                        <button class="accordion-button collapsed fw-bold d-flex justify-content-between align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop_id }}" aria-expanded="false" aria-controls="collapse{{ loop_id }}" style="background: rgba(6, 182, 212, 0.1); color: #fff;">
+                                            <span>📅 Fecha: {{ fecha_f }} <span class="badge bg-secondary ms-2">{{ lista_pedidos|length }} ventas</span></span>
+                                        </button>
+                                    </h2>
+                                    <div id="collapse{{ loop_id }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop_id }}" data-bs-parent="#acordeonHistorial">
+                                        <div class="accordion-body p-2">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered align-middle small mb-0">
+                                                    <thead class="table-light">
+                                                        <tr><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th><th class="text-end">Acción</th></tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for h in lista_pedidos %}
+                                                        <tr>
+                                                            <td>{{ h.nombre_cliente }}</td>
+                                                            <td>{{ h.jugador_id }}</td>
+                                                            <td>{{ h.detalle }}</td>
+                                                            <td class="text-success fw-bold">S/ {{ h.total }}</td>
+                                                            <td class="text-end"><a href="{{ url_for('eliminar_pedido', id=h.id) }}" class="btn btn-sm btn-danger py-0">🗑️</a></td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
                     {% else %}
-                    <p class="text-muted text-center py-3 mb-0">No hay ventas registradas el día de hoy.</p>
+                        <p class="text-center text-secondary py-3 mb-0">No hay registros en el archivo histórico.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Histórico acumulado por fechas -->
-            {% if historicos_agrupados %}
-            <div class="card bg-dark text-light border-secondary shadow">
-                <div class="card-header border-secondary fw-bold">
-                    <i class="bi bi-archive-fill"></i> Histórico de Días Anteriores
-                </div>
+        {% elif seccion == 'codigos_promo' %}
+            <div class="card shadow-sm border-info mb-4">
+                <div class="card-header bg-info text-white fw-bold">🎟️ Códigos Promocionales y Referidos</div>
                 <div class="card-body">
-                    <div class="accordion accordion-flush" id="accordionHistorico">
-                        {% for fecha_str, datos in historicos_agrupados.items() %}
-                        <div class="accordion-item bg-dark text-light border-secondary mb-2">
-                            <h2 class="accordion-header" id="heading{{ loop.index }}">
-                                <button class="accordion-button collapsed bg-secondary bg-opacity-10 text-light border-secondary shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}">
-                                    <span>📅 <b>{{ fecha_str }}</b> — <span class="text-success">S/ {{ "%.2f"|format(datos.total_monto) }}</span> ({{ datos.pedidos|length }} pedidos)</span>
-                                </button>
-                            </h2>
-                            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#accordionHistorico">
-                                <div class="accordion-body">
-                                    <div class="mb-2 text-end">
-                                        {% if EXCEL_DISPONIBLE %}
-                                        <a href="{{ url_for('exportar_excel', fecha=fecha_str) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel"></i> Descargar Excel</a>
-                                        {% endif %}
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table table-dark table-sm table-bordered border-secondary align-middle">
-                                            <thead>
-                                                <tr>
-                                                    <th>Fecha/Hora</th>
-                                                    <th>Cliente</th>
-                                                    <th>ID Destino</th>
-                                                    <th>Detalle</th>
-                                                    <th>Total</th>
-                                                    <th>Operación</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for p in datos.pedidos %}
-                                                <tr>
-                                                    <td><small>{{ p.fecha }}</small></td>
-                                                    <td>{{ p.nombre_cliente }}</td>
-                                                    <td><code>{{ p.jugador_id }}</code></td>
-                                                    <td><small>{{ p.detalle }}</small></td>
-                                                    <td class="text-success">S/ {{ "%.2f"|format(p.total) }}</td>
-                                                    <td><small class="text-muted">{{ p.codigo_operacion }}</small></td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
+                    <form action="{{ url_for('crear_codigo') }}" method="POST" class="row g-3 mb-3">
+                        <div class="col-md-4"><input type="text" name="codigo" class="form-control form-control-sm" placeholder="Código" required></div>
+                        <div class="col-md-3"><input type="number" step="0.1" name="descuento" class="form-control form-control-sm" placeholder="Descuento %" required></div>
+                        <div class="col-md-3"><button type="submit" class="btn btn-success btn-sm w-100 fw-bold">Crear</button></div>
+                    </form>
+                    <table class="table table-sm table-bordered small">
+                        <thead><tr><th>Código</th><th>Descuento</th><th>Acción</th></tr></thead>
+                        <tbody>
+                            {% for cp in codigos_promo %}
+                            <tr>
+                                <td class="fw-bold">{{ cp.codigo }}</td>
+                                <td>{{ cp.descuento_porcentaje }}%</td>
+                                <td><a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-danger btn-sm py-0">🗑️</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            {% endif %}
 
-            <!-- 4. MENSAJES DE SOPORTE -->
-            {% elif seccion == 'soporte' %}
-            <div class="card bg-dark text-light border-secondary shadow">
-                <div class="card-header border-secondary fw-bold text-info">
-                    <i class="bi bi-headset"></i> Mensajes de Atención al Cliente
+        {% elif seccion == 'gestion_usuarios' %}
+            <div class="card shadow-sm border-warning mb-4">
+                <div class="card-header bg-warning text-dark fw-bold">⏳ Solicitudes de Registro Pendientes</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th class="text-end">Acciones</th></tr></thead>
+                        <tbody>
+                            {% for p in pendientes %}
+                            <tr>
+                                <td class="fw-semibold">{{ p.nombre }}</td>
+                                <td>{{ p.correo }}</td>
+                                <td>{{ p.telefono or 'No registrado' }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('confirmar_usuario', id=p.id) }}" class="btn btn-sm btn-success fw-bold me-1">✓ Aceptar</a>
+                                    <a href="{{ url_for('eliminar_usuario', id=p.id) }}" class="btn btn-sm btn-danger">✕ Rechazar</a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-3 text-secondary">No hay solicitudes pendientes.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    {% if mensajes_soporte %}
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Remitente</th>
-                                    <th>Contacto</th>
-                                    <th>Mensaje</th>
-                                    <th>Imagen</th>
-                                    <th>Acción</th>
-                                </tr>
+            </div>
+
+            <div class="card shadow-sm border-info mb-4">
+                <div class="card-header bg-info text-dark fw-bold">🔑 Solicitudes de Recuperación de Contraseña</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 small">
+                        <thead><tr><th>Usuario</th><th>Correo</th><th>Teléfono</th><th class="text-end">Nueva Contraseña y Acción</th></tr></thead>
+                        <tbody>
+                            {% for s in solicitudes_reset %}
+                            <tr>
+                                <td class="fw-semibold">{{ s.nombre }}</td>
+                                <td>{{ s.correo }}</td>
+                                <td>{{ s.telefono or 'No registrado' }}</td>
+                                <td class="text-end">
+                                    <form action="{{ url_for('restablecer_password', id=s.id) }}" method="POST" class="d-inline-flex gap-1 align-items-center">
+                                        <input type="text" name="nueva_password" class="form-control form-control-sm" placeholder="Nueva clave" style="width: 130px;" required>
+                                        <button type="submit" class="btn btn-sm btn-primary fw-bold">Guardar</button>
+                                        <a href="{{ url_for('eliminar_solicitud_reset', id=s.id) }}" class="btn btn-sm btn-outline-danger">✕</a>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center py-3 text-secondary">No hay solicitudes de cambio de contraseña.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white fw-bold">👥 Gestión de Usuarios Activos</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped align-middle mb-0 small">
+                        <thead><tr><th>Nombre</th><th>Correo</th><th>En línea</th><th>Rango</th><th class="text-end">Acción</th></tr></thead>
+                        <tbody>
+                            {% for u in confirmados %}
+                            <tr>
+                                <td class="fw-semibold">{{ u.nombre }}</td>
+                                <td>{{ u.correo }}</td>
+                                <td id="estado-usuario-{{ u.id }}">
+                                    {% if u.en_linea %}<span class="badge bg-success">🟢 En línea</span>{% else %}<span class="text-secondary small">Desconectado</span>{% endif %}
+                                </td>
+                                <td><span class="badge bg-secondary">{{ u.rango }}</span></td>
+                                <td class="text-end"><a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-sm btn-danger">Eliminar</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+let audioActivado = localStorage.getItem('windnexx_audio_activo') === 'true';
+if (audioActivado) { document.getElementById('banner-activar-audio').style.display = 'none'; }
+function activarAudioSistema() {
+    audioActivado = true;
+    localStorage.setItem('windnexx_audio_activo', 'true');
+    document.getElementById('banner-activar-audio').style.display = 'none';
+}
+setInterval(() => {
+    fetch('/api/verificar-alertas').then(res => res.json()).then(data => {}).catch(() => {});
+}, 10000);
+</script>
+{% endblock %}
