@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WINDNEXX Store</title>
+    <title>WINDNEXX Store - Dashboard</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -18,74 +18,162 @@
       gtag('config', 'G-H8J7T2TLY6');
     </script>
 
+    <!-- ESTILOS AVANZADOS TIPO DASHBOARD UI (GLASSMORPHISM & CYBERPUNK) -->
     <style>
+        :root {
+            --bg-base: #06080e;
+            --bg-card: rgba(13, 17, 28, 0.85);
+            --bg-card-solid: #0d111c;
+            --border-glass: rgba(255, 255, 255, 0.07);
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
         body {
-            background-color: #0b0f19 !important;
-            color: #f8fafc !important;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-base) !important;
+            color: var(--text-main) !important;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-image: 
+                radial-gradient(circle at 15% 10%, rgba(59, 130, 246, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 85% 90%, rgba(139, 92, 246, 0.05) 0%, transparent 45%);
+            min-height: 100vh;
         }
+
+        /* Navbar superior translúcida */
+        .navbar {
+            background: rgba(8, 11, 18, 0.9) !important;
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-glass) !important;
+        }
+
+        /* Tarjetas flotantes estilo Glassmorphism */
         .card {
-            background-color: #1e293b !important;
-            color: #f8fafc !important;
-            border: 1px solid #334155 !important;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            background: var(--bg-card) !important;
+            backdrop-filter: blur(16px);
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-glass) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.4);
+            transition: all 0.25s ease;
         }
+
+        .card:hover {
+            border-color: rgba(59, 130, 246, 0.25) !important;
+            box-shadow: 0 12px 35px -5px rgba(59, 130, 246, 0.12);
+        }
+
         .card-header {
-            background-color: #0f172a !important;
-            border-bottom: 1px solid #334155 !important;
-            color: #f8fafc !important;
+            background: rgba(15, 22, 36, 0.7) !important;
+            border-bottom: 1px solid var(--border-glass) !important;
+            color: var(--text-main) !important;
+            font-weight: 600;
+            border-top-left-radius: 16px !important;
+            border-top-right-radius: 16px !important;
+            padding: 1rem 1.25rem;
         }
+
+        /* Menú lateral moderno */
         .list-group-item {
-            background-color: #1e293b !important;
-            color: #cbd5e1 !important;
-            border-color: #334155 !important;
+            background-color: transparent !important;
+            color: var(--text-muted) !important;
+            border: none !important;
+            border-radius: 10px !important;
+            margin-bottom: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            padding: 10px 15px;
         }
-        .list-group-item:hover, .list-group-item.active {
-            background-color: #2563eb !important;
+
+        .list-group-item:hover {
+            background-color: rgba(59, 130, 246, 0.08) !important;
             color: #ffffff !important;
-            border-color: #2563eb !important;
+            transform: translateX(3px);
         }
+
+        .list-group-item.active {
+            background: linear-gradient(135deg, #3b82f6, #6366f1) !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
+            border: none !important;
+        }
+
+        /* Formularios y campos de texto */
         .form-control, .form-select {
-            background-color: #0f172a !important;
-            color: #f8fafc !important;
-            border: 1px solid #475569 !important;
+            background-color: rgba(6, 8, 14, 0.9) !important;
+            color: var(--text-main) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 10px !important;
+            padding: 0.65rem 1rem;
         }
-        .form-control:focus {
-            background-color: #0f172a !important;
-            color: #f8fafc !important;
-            border-color: #3b82f6 !important;
-            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+
+        .form-control:focus, .form-select:focus {
+            background-color: rgba(6, 8, 14, 0.95) !important;
+            color: var(--text-main) !important;
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
+
+        /* Botones modernos */
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Tablas adaptadas */
         .table {
-            color: #f8fafc !important;
-            border-color: #334155 !important;
+            color: var(--text-main) !important;
+            border-color: var(--border-glass) !important;
         }
+
         .table-light {
-            background-color: #0f172a !important;
-            color: #f8fafc !important;
+            background-color: rgba(15, 22, 36, 0.8) !important;
+            color: var(--text-muted) !important;
+            border-color: var(--border-glass) !important;
         }
-        .bg-light {
-            background-color: #1e293b !important;
-            color: #f8fafc !important;
+
+        .table-striped > tbody > tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.015);
+            color: var(--text-main);
         }
-        .text-dark { color: #f8fafc !important; }
-        .text-secondary { color: #94a3b8 !important; }
-        .border { border-color: #334155 !important; }
+
+        /* Utilidades */
+        .text-dark { color: var(--text-main) !important; }
+        .text-secondary { color: var(--text-muted) !important; }
+        .bg-light { background-color: var(--bg-card-solid) !important; }
     </style>
 </head>
 <body>
 
-    <!-- BARRA SUPERIOR PROFESIONAL -->
-    <nav class="navbar navbar-dark bg-black px-4 mb-4 shadow border-bottom border-secondary">
-        <a class="navbar-brand fw-bold text-uppercase tracking-wider text-primary" href="#">
-            <i class="bi bi-cpu-fill text-info"></i> WINDNEXX Store
+    <!-- BARRA SUPERIOR -->
+    <nav class="navbar navbar-dark px-4 mb-4">
+        <a class="navbar-brand fw-bold text-uppercase tracking-wider d-flex align-items-center gap-2" href="#">
+            <i class="bi bi-cpu-fill text-info fs-4"></i> 
+            <span>WINDNEXX <span class="text-primary fs-6">WORKSPACE</span></span>
         </a>
         <div class="d-flex align-items-center">
             {% if session.get('nombre') %}
-                <span class="text-white me-3 small fw-semibold">
-                    <i class="bi bi-person-circle text-info"></i> ¡Hola, {{ session.get('nombre') }}!
+                <span class="text-white me-3 small fw-semibold px-3 py-1.5 rounded-pill" style="background: rgba(255,255,255,0.04); border: 1px solid var(--border-glass);">
+                    <i class="bi bi-person-circle text-info me-1"></i> {{ session.get('nombre') }}
                 </span>
-                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold px-3">Cerrar Sesión</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm fw-bold px-3 rounded-pill">Cerrar Sesión</a>
             {% endif %}
         </div>
     </nav>
@@ -95,7 +183,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'danger' else ('success' if category == 'success' else 'info') }} alert-dismissible fade show shadow-sm" role="alert">
+                    <div class="alert alert-{{ 'danger' if category == 'danger' else ('success' if category == 'success' else 'info') }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert" style="background: rgba(13, 17, 28, 0.95); backdrop-filter: blur(12px); border-left: 4px solid #3b82f6 !important; color: #fff;">
                         {{ message }}
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
