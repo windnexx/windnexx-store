@@ -146,6 +146,15 @@ class MensajeSoporte(db.Model):
 with app.app_context():
     db.create_all()
     
+    # Auto-migración segura para agregar columnas faltantes en Render o entorno local
+    try:
+        db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS google_id VARCHAR(100) UNIQUE;"))
+        db.session.execute(text("ALTER TABLE usuario ADD COLUMN IF NOT EXISTS correo_verificado BOOLEAN DEFAULT FALSE;"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Nota de migración: {e}")
+
     if not ConfiguracionGlobal.query.first():
         conf_g = ConfiguracionGlobal(anuncio_publicidad='¡Aprovecha los mejores descuentos en productos de Free Fire!')
         db.session.add(conf_g)
@@ -425,7 +434,7 @@ def register():
             telefono=telefono,
             password=hashed_password,
             rol='cliente',
-            correo_verificado=False, # Se verifica mediante el enlace
+            correo_verificado=False,
             confirmado=True,
             categoria='Cliente',
             rango='Bronce',
@@ -444,7 +453,6 @@ def register():
             
         db.session.commit()
         
-        # Generar token de verificación por correo
         token = serializer.dumps(correo, salt='email-verification-salt')
         enlace_verificacion = url_for('verificar_correo', token=token, _external=True)
         print(f"--- ENLACE DE VERIFICACIÓN PARA {correo}: {enlace_verificacion} ---")
@@ -543,7 +551,6 @@ def admin_panel():
         
     seccion_admin = request.args.get('seccion', 'pedidos_pendientes')
     
-    # Cuentas activas confirmadas
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').order_by(Usuario.ultima_actividad.desc().nullslast()).all()
     
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
@@ -594,7 +601,7 @@ def admin_panel():
     
     return render_template(
         'admin.html', 
-        pendientes=[], # Solicitudes manuales eliminadas al automatizar con enlaces y Google
+        pendientes=[], 
         confirmados=usuarios_confirmados,
         solicitudes_reset=solicitudes_reset,
         codigos_promo=codigos_promo,
