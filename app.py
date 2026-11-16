@@ -1,6 +1,9 @@
 import os
+import io
 import re
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+import zipfile
+from xml.sax.saxutils import escape as xml_escape
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -109,6 +112,13 @@ class MensajeSoporte(db.Model):
     estado = db.Column(db.String(20), default='Pendiente')
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
 
+# Modelo para Mensaje de Publicidad / Anuncio en Cliente Home
+class AnuncioPublicidad(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    mensaje = db.Column(db.Text, nullable=False, default='')
+    activo = db.Column(db.Boolean, default=False)
+    fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
+
 with app.app_context():
     db.create_all()
     
@@ -145,7 +155,7 @@ with app.app_context():
     admin_1 = Usuario.query.filter_by(correo='windnexx@gmail.com').first()
     if not admin_1:
         nuevo_admin_1 = Usuario(
-            nombre='Administrador Windnexx',
+            nombre='Nomar',
             correo='windnexx@gmail.com',
             telefono='999999999',
             password=generate_password_hash('2244Nexxxx'),
@@ -155,11 +165,13 @@ with app.app_context():
             codigo_referido='WIND-ADMIN-1'
         )
         db.session.add(nuevo_admin_1)
+    else:
+        admin_1.nombre = 'Nomar'
 
     admin_2 = Usuario.query.filter_by(correo='croldan12345@gmail.com').first()
     if not admin_2:
         nuevo_admin_2 = Usuario(
-            nombre='Administrador Carlos',
+            nombre='Carlos',
             correo='croldan12345@gmail.com',
             telefono='999999999',
             password=generate_password_hash('masterkeyne9999'),
@@ -169,6 +181,8 @@ with app.app_context():
             codigo_referido='WIND-ADMIN-2'
         )
         db.session.add(nuevo_admin_2)
+    else:
+        admin_2.nombre = 'Carlos'
         
     db.session.commit()
 
@@ -246,6 +260,79 @@ def calcular_estadisticas_usuario(usuario_id):
     fragmentos_equivalentes = int(round(monto_total_comprado / PRECIOS['Fragmentos']))
     return total_pases, total_fragmentos, total_cajas, fragmentos_equivalentes
 
+def generar_xlsx_memoria(filas_datos):
+    columnas_letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    xml_filas = []
+
+    for r_idx, fila in enumerate(filas_datos, start=1):
+        celdas = []
+        for c_idx, valor in enumerate(fila):
+            ref = f"{columnas_letras[c_idx]}{r_idx}"
+            if isinstance(valor, (int, float)):
+                celdas.append(f'<c r="{ref}"><v>{valor}</v></c>')
+            else:
+                texto_seguro = xml_escape(str(valor if valor is not None else ''))
+                celdas.append(f'<c r="{ref}" t="inlineStr"><is><t>{texto_seguro}</t></is></c>')
+        xml_filas.append(f'<row r="{r_idx}">{"".join(celdas)}</row>')
+
+    sheet_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<cols>'
+        '<col min="1" max="1" width="12" customWidth="1"/>'
+        '<col min="2" max="2" width="20" customWidth="1"/>'
+        '<col min="3" max="3" width="26" customWidth="1"/>'
+        '<col min="4" max="4" width="20" customWidth="1"/>'
+        '<col min="5" max="5" width="38" customWidth="1"/>'
+        '<col min="6" max="6" width="18" customWidth="1"/>'
+        '<col min="7" max="7" width="16" customWidth="1"/>'
+        '</cols>'
+        f'<sheetData>{"".join(xml_filas)}</sheetData>'
+        '</worksheet>'
+    )
+
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '</Types>'
+    )
+
+    rels_root = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>'
+    )
+
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Historial Ventas" sheetId="1" r:id="rId1"/></sheets>'
+        '</workbook>'
+    )
+
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        '</Relationships>'
+    )
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('[Content_Types].xml', content_types)
+        zf.writestr('_rels/.rels', rels_root)
+        zf.writestr('xl/workbook.xml', workbook_xml)
+        zf.writestr('xl/_rels/workbook.xml.rels', workbook_rels)
+        zf.writestr('xl/worksheets/sheet1.xml', sheet_xml)
+    buffer.seek(0)
+    return buffer
+
 @app.route('/')
 def index():
     return redirect(url_for('login'))
@@ -266,6 +353,7 @@ def login():
             session['usuario_id'] = usuario.id
             session['nombre'] = usuario.nombre
             session['rol'] = usuario.rol
+            session['correo'] = usuario.correo
             
             usuario.ultima_actividad = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None)
             db.session.commit()
@@ -404,6 +492,7 @@ def admin_panel():
     registros_referidos = RegistroReferido.query.all()
     config_referido = ConfiguracionReferido.query.first()
     mensajes_soporte = MensajeSoporte.query.order_by(MensajeSoporte.id.desc()).all()
+    publicidad = AnuncioPublicidad.query.first()
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
@@ -430,6 +519,8 @@ def admin_panel():
         registros_referidos=registros_referidos,
         config_referido=config_referido,
         mensajes_soporte=mensajes_soporte,
+        publicidad=publicidad,
+        admin_correo=session.get('correo', ''),
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
         historial_envios=historial_envios,
@@ -437,6 +528,70 @@ def admin_panel():
         historicos_agrupados=historicos_agrupados,
         seccion=seccion_admin,
         Usuario=Usuario
+    )
+
+@app.route('/admin/guardar_publicidad', methods=['POST'])
+def guardar_publicidad():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+
+    accion = request.form.get('accion', 'guardar')
+    mensaje_pub = request.form.get('mensaje_publicidad', '').strip()
+
+    anuncio = AnuncioPublicidad.query.first()
+    if not anuncio:
+        anuncio = AnuncioPublicidad()
+        db.session.add(anuncio)
+
+    if accion == 'quitar' or not mensaje_pub:
+        anuncio.mensaje = ''
+        anuncio.activo = False
+        anuncio.fecha = hora_lima().strftime('%d/%m/%Y %H:%M')
+        db.session.commit()
+        flash('El anuncio de publicidad ha sido quitado.', 'info')
+    else:
+        anuncio.mensaje = mensaje_pub
+        anuncio.activo = True
+        anuncio.fecha = hora_lima().strftime('%d/%m/%Y %H:%M')
+        db.session.commit()
+        flash('¡Mensaje de publicidad guardado y publicado para los clientes!', 'success')
+
+    return redirect(url_for('admin_panel', seccion='soporte'))
+
+@app.route('/admin/descargar_excel')
+def descargar_historial_excel():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+
+    fecha_solicitada = request.args.get('fecha', '')
+    pedidos_fecha = Pedido.query.filter_by(estado='Completado', solo_fecha=fecha_solicitada).order_by(Pedido.id.asc()).all()
+
+    filas = [
+        ["ID Pedido", "Fecha y Hora", "Cliente", "ID Destino", "Detalle de Productos", "Cupón", "Total (S/)"]
+    ]
+    total_dia = 0.0
+    for p in pedidos_fecha:
+        filas.append([
+            p.id,
+            p.fecha,
+            p.nombre_cliente,
+            p.jugador_id,
+            p.detalle,
+            p.codigo_promo if p.codigo_promo else "-",
+            round(float(p.total), 2)
+        ])
+        total_dia += float(p.total)
+
+    filas.append(["", "", "", "", "", "TOTAL DEL DÍA:", round(total_dia, 2)])
+
+    archivo_xlsx = generar_xlsx_memoria(filas)
+    nombre_descarga = f"Ventas_WindNexx_{fecha_solicitada.replace('/', '-')}.xlsx"
+
+    return send_file(
+        archivo_xlsx,
+        as_attachment=True,
+        download_name=nombre_descarga,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
 @app.route('/admin/soporte/atendido/<int:id>')
@@ -783,6 +938,7 @@ def cliente_home():
     db.session.commit()
 
     historial_compras = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).all()
+    publicidad = AnuncioPublicidad.query.filter_by(activo=True).first()
         
     total_general = 0
     carrito_calculado = []
@@ -816,6 +972,7 @@ def cliente_home():
         puntos_fragmentos=puntos_fragmentos,
         meta_rango=meta_rango,
         mis_referidos=mis_referidos,
+        publicidad=publicidad,
         Usuario=Usuario,
         CodigoPromo=CodigoPromo,
         carrito=carrito_calculado, 
