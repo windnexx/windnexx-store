@@ -6,6 +6,18 @@
     <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
 </audio>
 
+<!-- Banner de notificación flotante animado para cuando entra un pedido o registro -->
+<div id="toastAlerta" class="position-fixed top-0 end-0 p-3" style="z-index: 1080; display: none;">
+    <div class="toast align-items-center text-white bg-success border-0 shadow-lg show" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body fw-bold fs-6">
+                🔔 <span id="textoMensajeAlerta">¡Nueva actividad detectada en la tienda!</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" onclick="document.getElementById('toastAlerta').style.display='none';"></button>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     
     <!-- MENÚ LATERAL ADMINISTRADOR -->
@@ -348,7 +360,7 @@
                                     {% for u in pendientes %}
                                     <tr>
                                         <td class="fw-bold">{{ u.nombre }}</td>
-                                        <td>{{ u.correo }}</td>
+                                        <td class="text-white">{{ u.correo }}</td>
                                         <td>{{ u.telefono }}</td>
                                         <td>
                                             <a href="{{ url_for('confirmar_usuario', id=u.id) }}" class="btn btn-success btn-sm fw-bold">✓ Aceptar</a>
@@ -365,42 +377,7 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm border-danger bg-dark text-white mb-4">
-                <div class="card-header bg-danger text-white fw-bold">
-                    🔑 Solicitudes de Recuperación de Contraseña
-                </div>
-                <div class="card-body">
-                    {% if solicitudes_reset %}
-                        <div class="table-responsive">
-                            <table class="table table-dark table-hover align-middle small">
-                                <thead class="table-secondary text-dark">
-                                    <tr><th>Usuario</th><th>Correo</th><th>Teléfono</th><th>Nueva Contraseña y Acción</th></tr>
-                                </thead>
-                                <tbody>
-                                    {% for u in solicitudes_reset %}
-                                    <tr>
-                                        <td class="fw-bold">{{ u.nombre }}</td>
-                                        <td>{{ u.correo }}</td>
-                                        <td>{{ u.telefono }}</td>
-                                        <td>
-                                            <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="input-group input-group-sm">
-                                                <input type="text" name="nueva_password" class="form-control bg-black text-white border-secondary" placeholder="Nueva clave" required>
-                                                <button type="submit" class="btn btn-success fw-bold">Guardar</button>
-                                                <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-outline-secondary" title="Ignorar">✕</a>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <p class="text-muted text-center py-3 my-0 small">No hay solicitudes de restablecimiento de contraseña.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- GESTIÓN DE USUARIOS ACTIVOS CON ESTILO MODERN DARK Y ACTUALIZACIÓN EN TIEMPO REAL -->
+            <!-- GESTIÓN DE USUARIOS ACTIVOS (CORREGIDO: Correos en blanco, ordenados por actividad descendente) -->
             <div class="card shadow-lg border-secondary bg-dark text-white rounded-4 overflow-hidden">
                 <div class="card-header bg-black text-white fw-bold py-3 px-4 border-bottom border-secondary d-flex align-items-center justify-content-between">
                     <span><i class="bi bi-people-fill text-info me-2"></i> Gestión de Usuarios Activos</span>
@@ -408,7 +385,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive m-0">
-                        <table class="table table-dark table-hover align-middle mb-0 text-light small">
+                        <table class="table table-dark table-hover align-middle mb-0 text-light small" id="tablaUsuariosActivos">
                             <thead class="bg-black text-secondary text-uppercase fs-7 border-bottom border-secondary">
                                 <tr>
                                     <th class="py-3 px-3">Nombre</th>
@@ -419,21 +396,21 @@
                                     <th class="py-3 px-3 text-end">Acción</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="cuerpoTablaUsuarios">
                                 {% for u in confirmados %}
-                                <tr class="border-bottom border-secondary border-opacity-25">
+                                <tr class="border-bottom border-secondary border-opacity-25 user-row" data-timestamp="{{ u.ultima_actividad.timestamp() if u.ultima_actividad else 0 }}">
                                     <td class="fw-bold px-3 py-3 text-white">{{ u.nombre }}</td>
-                                    <td class="px-3 py-3 text-muted">{{ u.correo }}</td>
+                                    <!-- CORREGIDO: Correo en texto blanco visible -->
+                                    <td class="px-3 py-3 text-white">{{ u.correo }}</td>
                                     <td class="px-3 py-3 text-light">{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                     
-                                    <!-- Celda dinámica con ID único para actualizarse en tiempo real mediante JS -->
                                     <td class="px-3 py-3 text-center" id="user-status-{{ u.id }}">
                                         {% if u.en_linea %}
                                             <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1 rounded-pill">
-                                                <i class="bi bi-circle-fill fs-8 me-1 animate-pulse"></i> En línea
+                                                🟢 En línea
                                             </span>
                                         {% else %}
-                                            <div class="text-muted" style="font-size: 11px;">
+                                            <div class="text-light" style="font-size: 11px;">
                                                 <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-2 py-1 rounded-pill mb-1">Desconectado</span>
                                                 <br>{{ u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else 'Nunca' }}
                                             </div>
@@ -462,13 +439,13 @@
     </div>
 </div>
 
-<!-- Script global en tiempo real: Audio, Alertas de Pedidos y Estado de Usuarios Online Automático -->
+<!-- Script en tiempo real con notificaciones flotantes visibles, sonido y reordenamiento automático -->
 <script>
 let ultimoPedidoId = 0;
 let ultimoUsuarioId = 0;
 let pendientesAnteriores = -1;
 
-// Inicializa valores de control en segundo plano al cargar
+// Inicializa valores de control al cargar
 fetch('/api/verificar-alertas')
     .then(res => res.json())
     .then(data => {
@@ -479,26 +456,39 @@ fetch('/api/verificar-alertas')
         }
     }).catch(err => {});
 
-// Bucle de sincronización cada 5 segundos (Actualiza estado online y verifica pedidos nuevos)
+// Bucle en tiempo real cada 5 segundos
 setInterval(() => {
-    // 1. Sincroniza el estado en línea de los usuarios en la tabla sin recargar toda la página
+    // 1. Actualiza el estado online y reordena la tabla de usuarios dinámicamente de más reciente a más antiguo
     fetch('/api/estado-usuarios')
         .then(res => res.json())
         .then(estados => {
-            for (let userId in estados) {
-                let info = estados[userId];
-                let celda = document.getElementById(`user-status-${userId}`);
-                if (celda) {
-                    if (info.en_linea) {
-                        celda.innerHTML = `<span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1 rounded-pill">🟢 En línea</span>`;
-                    } else {
-                        celda.innerHTML = `<div class="text-muted" style="font-size: 11px;"><span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-2 py-1 rounded-pill mb-1">Desconectado</span><br>${info.ultima_actividad}</div>`;
+            let tbody = document.getElementById('cuerpoTablaUsuarios');
+            if (tbody) {
+                let filas = Array.from(tbody.getElementsByClassName('user-row'));
+                
+                filas.forEach(fila => {
+                    let userIdMatch = fila.querySelector('[id^="user-status-"]');
+                    if (userIdMatch) {
+                        let idStr = userIdMatch.id.replace('user-status-', '');
+                        if (estados[idStr]) {
+                            let info = estados[idStr];
+                            fila.setAttribute('data-timestamp', info.timestamp);
+                            if (info.en_linea) {
+                                userIdMatch.innerHTML = `<span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1 rounded-pill">🟢 En línea</span>`;
+                            } else {
+                                userIdMatch.innerHTML = `<div class="text-light" style="font-size: 11px;"><span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-2 py-1 rounded-pill mb-1">Desconectado</span><br>${info.ultima_actividad}</div>`;
+                            }
+                        }
                     }
-                }
+                });
+
+                // Reordena las filas en tiempo real según el timestamp (más reciente arriba)
+                filas.sort((a, b) => parseFloat(b.getAttribute('data-timestamp')) - parseFloat(a.getAttribute('data-timestamp')));
+                filas.forEach(fila => tbody.appendChild(fila));
             }
         }).catch(err => {});
 
-    // 2. Comprueba si hay nuevos pedidos o registros para activar el sonido de alerta y refrescar
+    // 2. Comprueba pedidos/registros nuevos, muestra banner flotante, suena y recarga
     fetch('/api/verificar-alertas')
         .then(res => res.json())
         .then(data => {
@@ -509,14 +499,26 @@ setInterval(() => {
                     data.ultimo_usuario_id > ultimoUsuarioId || 
                     (pendientesAnteriores !== -1 && pendientesActuales > pendientesAnteriores)) {
                     
+                    // Reproduce sonido
                     let audio = document.getElementById('audioNotificacion');
                     if (audio) {
-                        audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador:", e));
+                        audio.play().catch(e => console.log("Audio bloqueado:", e));
                     }
                     
+                    // Muestra el banner flotante visible
+                    let toast = document.getElementById('toastAlerta');
+                    let texto = document.getElementById('textoMensajeAlerta');
+                    if (texto && data.mensaje) {
+                        texto.innerText = data.mensaje;
+                    }
+                    if (toast) {
+                        toast.style.display = 'block';
+                    }
+                    
+                    // Espera 1.5 segundos para que se vea el aviso y suene antes de recargar
                     setTimeout(() => {
                         location.reload();
-                    }, 1000);
+                    }, 1500);
                 }
             }
         }).catch(err => {});
