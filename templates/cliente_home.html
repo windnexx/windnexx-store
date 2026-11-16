@@ -312,22 +312,43 @@
                             </div>
                         </div>
 
-                        <!-- PRODUCTO: DIAMANTES EN MANTENIMIENTO -->
+                        <!-- PRODUCTO: DIAMANTES -->
                         <div class="col">
-                            <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
-                                <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-warning text-dark px-3 py-1 fw-bold shadow" style="font-size: 11px; margin-top: -5px; letter-spacing: 0.5px;">
-                                    🛠️ EN MANTENIMIENTO 🛠️
-                                </span>
-                                <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-3" style="height: 70px; object-fit: contain;" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
-                                <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold mb-2 text-muted">Diamantes</h6>
-                                    <div class="input-group input-group-sm mb-2">
-                                        <span class="input-group-text">Cant.</span>
-                                        <input type="number" class="form-control text-center text-muted" value="0" disabled>
+                            {% if config_productos and config_productos.diamantes_habilitado and paquetes_diamantes %}
+                                <div class="card h-100 shadow-sm text-center p-2 position-relative">
+                                    <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
+                                    <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
+                                    <div class="card-body d-flex flex-column justify-content-between p-2">
+                                        <h6 class="card-title fw-bold mb-1">Diamantes</h6>
+                                        <small class="text-muted mb-2" style="font-size: 10px;">
+                                            Paquetes: {% for p in paquetes_diamantes %}{{ p.cantidad }}{% if not loop.last %}, {% endif %}{% endfor %}
+                                        </small>
+                                        <form action="{{ url_for('agregar_carrito') }}" method="POST">
+                                            <input type="hidden" name="producto" value="Diamantes">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <span class="input-group-text">Cant.</span>
+                                                <input type="number" id="inputCantidadDiamantes" name="cantidad" class="form-control text-center" value="{{ paquetes_diamantes[0].cantidad }}" min="{{ paquetes_diamantes[0].cantidad }}" onchange="ajustarPaqueteDiamantes(this)" onblur="ajustarPaqueteDiamantes(this)" required>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
+                                        </form>
                                     </div>
-                                    <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" disabled>🛠️ No disponible</button>
                                 </div>
-                            </div>
+                            {% else %}
+                                <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
+                                    <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-warning text-dark px-3 py-1 fw-bold shadow" style="font-size: 11px; margin-top: -5px; letter-spacing: 0.5px;">
+                                        🛠️ EN MANTENIMIENTO 🛠️
+                                    </span>
+                                    <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-3" style="height: 70px; object-fit: contain;" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
+                                    <div class="card-body d-flex flex-column justify-content-between p-2">
+                                        <h6 class="card-title fw-bold mb-2 text-muted">Diamantes</h6>
+                                        <div class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text">Cant.</span>
+                                            <input type="number" class="form-control text-center text-muted" value="0" disabled>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" disabled>🛠️ No disponible</button>
+                                    </div>
+                                </div>
+                            {% endif %}
                         </div>
 
                     </div>
@@ -554,6 +575,31 @@
 </div>
 
 <script>
+const paquetesDiamantesPermitidos = [
+    {% for p in paquetes_diamantes %}{{ p.cantidad }}{% if not loop.last %}, {% endif %}{% endfor %}
+];
+
+function ajustarPaqueteDiamantes(input) {
+    if (!paquetesDiamantesPermitidos || paquetesDiamantesPermitidos.length === 0) return;
+    let val = parseInt(input.value, 10);
+    if (isNaN(val)) {
+        input.value = paquetesDiamantesPermitidos[0];
+        return;
+    }
+    let masCercano = paquetesDiamantesPermitidos[0];
+    let menorDiferencia = Math.abs(val - masCercano);
+
+    for (let i = 1; i < paquetesDiamantesPermitidos.length; i++) {
+        let actual = paquetesDiamantesPermitidos[i];
+        let diff = Math.abs(val - actual);
+        if (diff < menorDiferencia || (diff === menorDiferencia && actual > masCercano)) {
+            menorDiferencia = diff;
+            masCercano = actual;
+        }
+    }
+    input.value = masCercano;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     const saldoReferidos = {{ usuario.saldo_fragmentos if usuario.saldo_fragmentos else 0 }};
     const urlReferidos = "{{ url_for('cliente_home', seccion='amigo_referidos') }}";

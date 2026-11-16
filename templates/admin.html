@@ -42,6 +42,9 @@
                     <span>🎧 Mensajes de Soporte</span>
                     <span class="badge bg-danger rounded-pill">{{ mensajes_soporte|rejectattr('estado', 'equalto', 'Atendido')|list|length }}</span>
                 </a>
+                <a href="{{ url_for('admin_panel', seccion='productos_precios') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'productos_precios' %}active fw-bold{% endif %} border-secondary">
+                    💎 Productos y Precios
+                </a>
                 <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'codigos_promo' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center border-secondary">
                     <span>🎟️ Códigos y Referidos</span>
                     <span class="badge bg-info text-dark rounded-pill">{{ codigos_promo|length }}</span>
@@ -298,6 +301,104 @@
                     {% else %}
                         <p class="text-muted text-center py-4 my-0 small">No hay mensajes de soporte nuevos.</p>
                     {% endif %}
+                </div>
+            </div>
+
+        {% elif seccion == 'productos_precios' %}
+            <div class="row g-4">
+                <!-- PRECIOS BASE Y ESTADO DE DIAMANTES -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-primary bg-dark text-white h-100">
+                        <div class="card-header bg-primary text-white fw-bold">
+                            💲 Precios de Productos y Estado
+                        </div>
+                        <div class="card-body">
+                            <form action="{{ url_for('guardar_precios_productos') }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Precio por Unidad - Fragmentos (S/):</label>
+                                    <input type="number" step="0.001" min="0.001" name="precio_fragmentos" class="form-control bg-black text-white border-secondary" value="{{ config_productos.precio_fragmentos if config_productos else 0.082 }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Precio por Unidad - Cajas (S/):</label>
+                                    <input type="number" step="0.01" min="0.01" name="precio_cajas" class="form-control bg-black text-white border-secondary" value="{{ config_productos.precio_cajas if config_productos else 0.45 }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Precio por Unidad - Pases (S/):</label>
+                                    <input type="number" step="0.01" min="0.01" name="precio_pases" class="form-control bg-black text-white border-secondary" value="{{ config_productos.precio_pases if config_productos else 3.00 }}" required>
+                                </div>
+                                <div class="form-check form-switch mb-3 p-3 bg-black rounded border border-secondary">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" id="switchDiamantes" name="diamantes_habilitado" {% if not config_productos or config_productos.diamantes_habilitado %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold text-info" for="switchDiamantes">
+                                        💎 Habilitar venta de Diamantes en la tienda
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-bold">💾 Guardar Precios y Estado</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AGREGAR PAQUETES ESPECÍFICOS DE DIAMANTES -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm border-info bg-dark text-white h-100">
+                        <div class="card-header bg-info text-dark fw-bold">
+                            💎 Configurar Cantidades y Precios de Diamantes
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-light mb-3">
+                                Define las cantidades exactas permitidas para Diamantes y su precio. Si el cliente escribe otro número, se ajustará automáticamente al paquete más cercano.
+                            </p>
+                            <form action="{{ url_for('agregar_paquete_diamante') }}" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Cantidad exacta de Diamantes:</label>
+                                    <input type="number" min="1" step="1" name="cantidad_diamantes" class="form-control bg-black text-white border-secondary" placeholder="Ej. 100, 310, 520..." required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Precio del Paquete (S/):</label>
+                                    <input type="number" min="0.01" step="0.01" name="precio_diamantes" class="form-control bg-black text-white border-secondary" placeholder="Ej. 3.50" required>
+                                </div>
+                                <button type="submit" class="btn btn-info text-dark w-100 fw-bold">➕ Agregar / Actualizar Paquete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LISTADO DE PAQUETES DE DIAMANTES CONFIGURADOS -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-secondary bg-dark text-white">
+                        <div class="card-header bg-black text-info fw-bold border-bottom border-secondary d-flex justify-content-between align-items-center">
+                            <span>💎 Paquetes de Diamantes Permitidos</span>
+                            <span class="badge bg-info text-dark">{{ paquetes_diamantes|length }} paquetes</span>
+                        </div>
+                        <div class="card-body">
+                            {% if paquetes_diamantes %}
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-sm table-hover align-middle small mb-0">
+                                        <thead class="table-secondary text-dark">
+                                            <tr>
+                                                <th>Cantidad de Diamantes</th>
+                                                <th>Precio (S/)</th>
+                                                <th class="text-end">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for paq in paquetes_diamantes %}
+                                            <tr>
+                                                <td class="fw-bold text-info">💎 {{ paq.cantidad }} Diamantes</td>
+                                                <td class="fw-bold text-success">S/ {{ "%.2f"|format(paq.precio) }}</td>
+                                                <td class="text-end">
+                                                    <a href="{{ url_for('eliminar_paquete_diamante', id=paq.id) }}" class="btn btn-outline-danger btn-sm fw-bold" onclick="return confirm('¿Eliminar este paquete de diamantes?')">Eliminar</a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center py-3 my-0 small">No hay paquetes de diamantes configurados.</p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
