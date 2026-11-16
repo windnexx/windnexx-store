@@ -170,6 +170,20 @@ with app.app_context():
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
+
+    try:
+        with db.engine.connect() as connection:
+            connection.execute(text('ALTER TABLE paquete_diamante ALTER COLUMN precio_actual DROP NOT NULL;'))
+            connection.commit()
+    except Exception:
+        pass
+
+    try:
+        with db.engine.connect() as connection:
+            connection.execute(text('ALTER TABLE paquete_diamante ALTER COLUMN precio_anterior DROP NOT NULL;'))
+            connection.commit()
+    except Exception:
+        pass
     
     if not ConfiguracionProductos.query.first():
         conf_prod = ConfiguracionProductos(
