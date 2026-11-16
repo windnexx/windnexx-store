@@ -1,78 +1,133 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WINDNEXX Store - Crear Cuenta</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <style>
+        :root {
+            --bg-base: #06080e;
+            --bg-card: rgba(13, 17, 28, 0.85);
+            --border-glass: rgba(255, 255, 255, 0.07);
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
 
-{% block content %}
-<div class="container d-flex justify-content-center align-items-center min-vh-100">
-    <div class="card shadow-sm border-0 p-4" style="max-width: 450px; width: 100%; background-color: #121212; color: #fff;">
-        
-        <!-- Logo / Título Superior Corregido -->
-        <div class="d-flex align-items-center mb-4">
-            <span class="text-primary font-bold text-lg me-2">🛡️</span>
-            <span class="text-white font-extrabold tracking-wide fs-5">WINDNEXX STORE</span>
-        </div>
+        body {
+            background-color: var(--bg-base) !important;
+            color: var(--text-main) !important;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: 
+                radial-gradient(circle at 15% 10%, rgba(59, 130, 246, 0.06) 0%, transparent 45%),
+                radial-gradient(circle at 85% 90%, rgba(139, 92, 246, 0.05) 0%, transparent 45%);
+        }
 
-        <h3 class="text-center mb-4 fw-bold text-success">Crear Cuenta</h3>
+        .card {
+            background: var(--bg-card) !important;
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 460px;
+        }
 
-        <form action="{{ url_for('register') }}" method="POST">
+        .form-control {
+            background-color: rgba(6, 8, 14, 0.9) !important;
+            color: var(--text-main) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 10px !important;
+            padding: 0.65rem 1rem;
+        }
+
+        .form-control:focus {
+            background-color: rgba(6, 8, 14, 0.95) !important;
+            color: var(--text-main) !important;
+            border-color: var(--accent-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container px-3">
+        <div class="card p-4 mx-auto shadow-lg">
             
-            <!-- 1. Nombre Completo -->
-            <div class="mb-3">
-                <label class="form-label small fw-bold text-light">Nombre Completo</label>
-                <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" placeholder="Juan Pérez" required>
+            <div class="text-center mb-4">
+                <h5 class="fw-bold text-uppercase tracking-wider mb-2 text-white d-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-cpu-fill text-info"></i> WINDNEXX <span class="text-primary">STORE</span>
+                </h5>
+                <h3 class="fw-bold text-success">Crear Cuenta</h3>
             </div>
 
-            <!-- 2. Número de Teléfono (Obligatorio, 9 dígitos con formato de espacios) -->
-            <div class="mb-3">
-                <label class="form-label small fw-bold text-light">Número de Teléfono <span class="text-danger">*</span></label>
-                <input type="text" id="telefono" name="telefono" class="form-control bg-dark text-white border-secondary text-center fw-bold" placeholder="932 132 132" maxlength="11" required>
-                <div class="form-text text-muted" style="font-size: 11px;">Obligatorio. Ingresa 9 dígitos (ej. 932 132 132).</div>
-            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show small shadow-sm" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
-            <!-- 3. Correo Electrónico -->
-            <div class="mb-3">
-                <label class="form-label small fw-bold text-light">Correo Electrónico</label>
-                <input type="email" name="correo" class="form-control bg-dark text-white border-secondary" placeholder="correo@ejemplo.com" required>
-            </div>
+            <form action="{{ url_for('register') }}" method="POST">
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-secondary">Nombre Completo</label>
+                    <input type="text" name="nombre" class="form-control" placeholder="Tus nombres y apellidos" required>
+                </div>
 
-            <!-- 4. Contraseña -->
-            <div class="mb-3">
-                <label class="form-label small fw-bold text-light">Contraseña</label>
-                <input type="password" name="password" class="form-control bg-dark text-white border-secondary" placeholder="••••••••" required>
-            </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-secondary">Número de Teléfono <span class="text-danger">*</span></label>
+                    <input type="text" name="telefono" class="form-control text-center fw-bold fs-5 text-info" maxlength="9" minlength="9" pattern="[0-9]{9}" placeholder="932132132" title="Debe ingresar exactamente 9 dígitos numéricos" required>
+                    <div class="form-text text-muted" style="font-size: 11px;">Obligatorio. Ingresa exactamente 9 dígitos (ej. 932132132).</div>
+                </div>
 
-            <!-- 5. Código de Invitación (Al final) -->
-            <div class="mb-4">
-                <label class="form-label small fw-bold text-light">Código de Invitación <span class="text-muted">(Opcional)</span></label>
-                <input type="text" name="codigo_invitacion" class="form-control bg-dark text-white border-secondary text-uppercase" placeholder="Ej. WIND-1-ABCD">
-            </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-secondary">Correo Electrónico</label>
+                    <input type="email" name="correo" class="form-control" placeholder="correo@gmail.com" required>
+                </div>
 
-            <button type="submit" class="btn btn-success w-100 fw-bold py-2 mb-3">Solicitar Registro</button>
-        </form>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small text-secondary">Contraseña</label>
+                    <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                </div>
 
-        <div class="text-center mt-2">
-            <span class="text-muted small">¿Ya tienes cuenta?</span> 
-            <a href="{{ url_for('login') }}" class="text-success text-decoration-none fw-bold small">Inicia sesión</a>
+                <div class="mb-4">
+                    <label class="form-label fw-bold small text-secondary">Código de Invitación <span class="text-muted fw-normal">(Opcional)</span></label>
+                    <input type="text" name="codigo_invitacion" class="form-control text-uppercase" placeholder="EJ. WIND-1-ABCD">
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-2 mb-3 fw-bold">Registrarse</button>
+                
+                <div class="text-center small">
+                    <span class="text-muted">¿Ya tienes una cuenta?</span> 
+                    <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Inicia Sesión aquí</a>
+                </div>
+            </form>
+
         </div>
     </div>
-</div>
 
-<!-- Script para formatear automáticamente el teléfono de 3 en 3 y validar los 9 dígitos -->
-<script>
-document.getElementById('telefono').addEventListener('input', function (e) {
-    let value = e.target.value.replace(/\D/g, ''); // Solo números
-    if (value.length > 9) {
-        value = value.slice(0, 9); // Máximo 9 dígitos reales
-    }
-    
-    // Aplicar formato de espacios cada 3 dígitos (Ej: 932 132 132)
-    let formattedValue = '';
-    for (let i = 0; i < value.length; i++) {
-        if (i > 0 && i % 3 === 0) {
-            formattedValue += ' ';
-        }
-        formattedValue += value[i];
-    }
-    
-    e.target.value = formattedValue;
-});
-</script>
-{% endblock %}
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
