@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta_windnexx_desarrollo'
@@ -172,18 +172,16 @@ with app.app_context():
         print("Aviso al verificar columnas en la BD:", e)
 
     try:
-        with db.engine.connect() as connection:
-            connection.execute(text('ALTER TABLE paquete_diamante ALTER COLUMN precio_actual DROP NOT NULL;'))
-            connection.commit()
-    except Exception:
-        pass
-
-    try:
-        with db.engine.connect() as connection:
-            connection.execute(text('ALTER TABLE paquete_diamante ALTER COLUMN precio_anterior DROP NOT NULL;'))
-            connection.commit()
-    except Exception:
-        pass
+        inspector = inspect(db.engine)
+        if 'paquete_diamante' in inspector.get_table_names():
+            columnas_paq = [col['name'] for col in inspector.get_columns('paquete_diamante')]
+            with db.engine.connect() as connection:
+                for col_name in columnas_paq:
+                    if col_name not in ('id', 'cantidad', 'precio'):
+                        connection.execute(text(f'ALTER TABLE paquete_diamante ALTER COLUMN "{col_name}" DROP NOT NULL;'))
+                connection.commit()
+    except Exception as e:
+        print("Aviso al liberar columnas antiguas de paquete_diamante:", e)
     
     if not ConfiguracionProductos.query.first():
         conf_prod = ConfiguracionProductos(
