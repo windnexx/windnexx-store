@@ -61,6 +61,9 @@ class ConfiguracionProductos(db.Model):
     precio_fragmentos = db.Column(db.Float, default=0.082)
     precio_cajas = db.Column(db.Float, default=0.45)
     precio_pases = db.Column(db.Float, default=3.00)
+    fragmentos_habilitado = db.Column(db.Boolean, default=True)
+    cajas_habilitado = db.Column(db.Boolean, default=True)
+    pases_habilitado = db.Column(db.Boolean, default=True)
     diamantes_habilitado = db.Column(db.Boolean, default=True)
 
 # Modelo de Paquetes Específicos de Diamantes
@@ -164,6 +167,9 @@ with app.app_context():
             connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS precio_fragmentos FLOAT DEFAULT 0.082;'))
             connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS precio_cajas FLOAT DEFAULT 0.45;'))
             connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS precio_pases FLOAT DEFAULT 3.00;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS fragmentos_habilitado BOOLEAN DEFAULT TRUE;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS cajas_habilitado BOOLEAN DEFAULT TRUE;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS pases_habilitado BOOLEAN DEFAULT TRUE;'))
             connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS diamantes_habilitado BOOLEAN DEFAULT TRUE;'))
             connection.execute(text('ALTER TABLE paquete_diamante ADD COLUMN IF NOT EXISTS cantidad INTEGER;'))
             connection.execute(text('ALTER TABLE paquete_diamante ADD COLUMN IF NOT EXISTS precio FLOAT DEFAULT 0.0;'))
@@ -188,6 +194,9 @@ with app.app_context():
             precio_fragmentos=0.082,
             precio_cajas=0.45,
             precio_pases=3.00,
+            fragmentos_habilitado=True,
+            cajas_habilitado=True,
+            pases_habilitado=True,
             diamantes_habilitado=True
         )
         db.session.add(conf_prod)
@@ -259,6 +268,9 @@ def obtener_config_productos():
             precio_fragmentos=0.082,
             precio_cajas=0.45,
             precio_pases=3.00,
+            fragmentos_habilitado=True,
+            cajas_habilitado=True,
+            pases_habilitado=True,
             diamantes_habilitado=True
         )
         db.session.add(conf)
@@ -685,6 +697,9 @@ def guardar_precios_productos():
         p_frag = float(request.form.get('precio_fragmentos', conf.precio_fragmentos))
         p_cajas = float(request.form.get('precio_cajas', conf.precio_cajas))
         p_pases = float(request.form.get('precio_pases', conf.precio_pases))
+        frag_hab = request.form.get('fragmentos_habilitado') == 'on'
+        cajas_hab = request.form.get('cajas_habilitado') == 'on'
+        pases_hab = request.form.get('pases_habilitado') == 'on'
         diam_hab = request.form.get('diamantes_habilitado') == 'on'
 
         if p_frag > 0:
@@ -693,10 +708,13 @@ def guardar_precios_productos():
             conf.precio_cajas = p_cajas
         if p_pases > 0:
             conf.precio_pases = p_pases
+        conf.fragmentos_habilitado = frag_hab
+        conf.cajas_habilitado = cajas_hab
+        conf.pases_habilitado = pases_hab
         conf.diamantes_habilitado = diam_hab
 
         db.session.commit()
-        flash('Precios y estado de productos actualizados correctamente.', 'success')
+        flash('Precios y estado de stock actualizados correctamente.', 'success')
     except ValueError:
         flash('Por favor ingresa montos numéricos válidos.', 'danger')
 
@@ -1240,10 +1258,18 @@ def agregar_carrito():
     producto = request.form.get('producto')
     config_productos = obtener_config_productos()
 
+    disponibilidad = {
+        'Fragmentos': bool(config_productos.fragmentos_habilitado),
+        'Cajas': bool(config_productos.cajas_habilitado),
+        'Pases': bool(config_productos.pases_habilitado),
+        'Diamantes': bool(config_productos.diamantes_habilitado)
+    }
+
+    if producto in disponibilidad and not disponibilidad[producto]:
+        flash(f'El producto {producto} se encuentra sin stock en este momento.', 'warning')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
+
     if producto == 'Diamantes':
-        if not config_productos.diamantes_habilitado:
-            flash('La venta de Diamantes se encuentra en mantenimiento en este momento.', 'warning')
-            return redirect(url_for('cliente_home', seccion='catalogo'))
         try:
             cantidad_ingresada = int(request.form.get('cantidad', 0))
         except ValueError:
