@@ -727,10 +727,17 @@ def crear_codigo():
 def eliminar_codigo(id):
     if 'usuario_id' not in session or session.get('rol') != 'admin':
         return redirect(url_for('login'))
+        
     cp = CodigoPromo.query.get_or_404(id)
-    db.session.delete(cp)
-    db.session.commit()
-    flash('Código promocional eliminado.', 'info')
+    try:
+        UsoCodigoUsuario.query.filter_by(codigo_id=cp.id).delete()
+        db.session.delete(cp)
+        db.session.commit()
+        flash('Código promocional eliminado correctamente.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'No se pudo eliminar el código promocional: {str(e)}', 'danger')
+        
     return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
 @app.route('/api/verificar-alertas')
