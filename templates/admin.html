@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- Elemento de audio invisible para reproducir la notificación sonora -->
+<audio id="audioNotificacion" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+</audio>
+
 <div class="row">
     
     <!-- MENÚ LATERAL ADMINISTRADOR -->
@@ -118,7 +123,6 @@
             <div class="card shadow-sm border-secondary mb-4">
                 <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📋 Historial de Envíos Realizados</span>
-                    <!-- Botón de papelera con texto legible en negro -->
                     <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-warning btn-sm fw-bold text-dark px-3 shadow-sm" title="Vaciar historial de hoy" onclick="return confirm('¿Vaciar y archivar las ventas de hoy?')">
                         <i class="bi bi-trash-fill"></i> Vaciar historial de hoy
                     </a>
@@ -243,7 +247,6 @@
             </div>
 
         {% elif seccion == 'codigos_promo' %}
-            <!-- CÓDIGOS PROMOCIONALES Y REFERIDOS -->
             <div class="row g-4">
                 <div class="col-md-6">
                     <div class="card shadow-sm border-success">
@@ -263,13 +266,13 @@
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Tipo de Límite de Uso:</label>
                                     <select name="tipo_limite" class="form-select">
-                                        <option value="ilimitado">Ilimitado (Cualquier usuario las veces que quiera)</option>
+                                        <option value="ilimitado">Ilimitado</option>
                                         <option value="una_por_cuenta">Una sola vez por cuenta</option>
                                         <option value="primeras_cuentas">Limitado a las primeras N cuentas</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold small">Máximo de cuentas (Si elegiste límite arriba):</label>
+                                    <label class="form-label fw-bold small">Máximo de cuentas:</label>
                                     <input type="number" name="max_usos_primeras" class="form-control" value="0">
                                 </div>
                                 <button type="submit" class="btn btn-success w-100 fw-bold">Crear Código</button>
@@ -290,7 +293,7 @@
                                     <input type="text" name="nombre_premio" class="form-control" value="{{ config_referido.nombre_premio if config_referido else 'Cupón de Recompensa' }}" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold small">Porcentaje de Descuento del Cupón de Premio (%):</label>
+                                    <label class="form-label fw-bold small">Porcentaje de Descuento (%):</label>
                                     <input type="number" step="0.1" name="descuento_referido" class="form-control" value="{{ config_referido.descuento_porcentaje if config_referido else 6.0 }}" required>
                                 </div>
                                 <button type="submit" class="btn btn-dark w-100 fw-bold">Guardar Configuración</button>
@@ -332,7 +335,6 @@
 
         {% elif seccion == 'gestion_usuarios' %}
             
-            <!-- SOLICITUDES DE REGISTRO PENDIENTES -->
             <div class="card shadow-sm border-warning mb-4">
                 <div class="card-header bg-warning text-dark fw-bold">
                     ⏳ Solicitudes de Registro Pendientes (Aprobación Requerida)
@@ -365,7 +367,6 @@
                 </div>
             </div>
 
-            <!-- SOLICITUDES DE RECUPERACIÓN DE CONTRASEÑA -->
             <div class="card shadow-sm border-danger mb-4">
                 <div class="card-header bg-danger text-white fw-bold">
                     🔑 Solicitudes de Recuperación de Contraseña
@@ -401,7 +402,6 @@
                 </div>
             </div>
 
-            <!-- GESTIÓN DE USUARIOS ACTIVOS (SIN EL TEXTO DE ORDENADO) -->
             <div class="card shadow-sm border-dark">
                 <div class="card-header bg-dark text-white fw-bold">
                     👥 Gestión de Usuarios Activos
@@ -413,6 +413,7 @@
                                 <tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Estado / Última Conexión (Lima, Perú)</th><th>Rango</th><th>Acción</th></tr>
                             </thead>
                             <tbody>
+                                (_loop_usuarios_)
                                 {% for u in confirmados %}
                                 <tr>
                                     <td class="fw-bold">{{ u.nombre }}</td>
@@ -426,7 +427,7 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge {% if u.rango == 'Plata' %}bg-primary{% else %}bg-secondary{% type_badge %}{% endif %}">{{ u.rango }}</span>
+                                        <span class="badge {% if u.rango == 'Plata' %}bg-primary{% else %}bg-secondary{% endif %}">{{ u.rango }}</span>
                                     </td>
                                     <td>
                                         <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-danger btn-sm fw-bold" onclick="return confirm('¿Estás seguro de eliminar este usuario?')">Eliminar</a>
@@ -444,13 +445,21 @@
     </div>
 </div>
 
-<!-- Script en tiempo real para autorefrescar alertas y estados online -->
+<!-- Script en tiempo real con reproducción de sonido de alerta -->
 <script>
+let ultimoTotalPedidos = {{ pedidos_validacion|length }};
+let ultimoTotalUsuarios = {{ pendientes|length + solicitudes_reset|length }};
+
 setInterval(() => {
     fetch('/api/verificar-alertas')
         .then(res => res.json())
         .then(data => {
-            if (data.total_pedidos !== window.ultimoTotalPedidos || data.total_usuarios !== window.ultimoTotalUsuarios) {
+            if (data.total_pedidos > ultimoTotalPedidos || data.total_usuarios > ultimoTotalUsuarios) {
+                // Reproduce el sonido de notificación de forma segura
+                let audio = document.getElementById('audioNotificacion');
+                if (audio) {
+                    audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador hasta interacción:", e));
+                }
                 location.reload();
             }
         }).catch(err => {});

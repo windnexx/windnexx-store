@@ -283,8 +283,13 @@ def register():
         password = request.form.get('password', '')
         codigo_invitacion = request.form.get('codigo_invitacion', '').strip().upper()
         
-        if not nombre or not correo or not password or not telefono:
-            flash('Todos los campos obligatorios, incluyendo el teléfono, son requeridos.', 'danger')
+        # Validación estricta de exactamente 9 dígitos para el teléfono
+        if not telefono or not telefono.isdigit() or len(telefono) != 9:
+            flash('El número de teléfono es obligatorio y debe contener exactamente 9 dígitos numéricos.', 'danger')
+            return redirect(url_for('register'))
+
+        if not nombre or not correo or not password:
+            flash('Todos los campos obligatorios son requeridos.', 'danger')
             return redirect(url_for('register'))
 
         if Usuario.query.filter_by(correo=correo).first():
@@ -654,7 +659,7 @@ def vaciar_historial_hoy():
     pedidos_hoy = Pedido.query.filter_by(estado='Completado', solo_fecha=hoy_str).all()
     
     for p in pedidos_hoy:
-        p.solo_fecha = "Archivado (" + hoy_str + ")"
+        p.solo_fecha = hoy_str
         
     db.session.commit()
     flash('El historial de hoy ha sido vaciado y guardado en los paneles de archivo.', 'success')
