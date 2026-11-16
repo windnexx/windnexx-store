@@ -449,6 +449,23 @@ def soporte_atendido(id):
     flash('Consulta marcada como atendida.', 'success')
     return redirect(url_for('admin_panel', seccion='soporte'))
 
+@app.route('/admin/soporte/eliminar/<int:id>')
+def eliminar_soporte(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    msj = MensajeSoporte.query.get_or_404(id)
+    if msj.imagen:
+        ruta_img = os.path.join(app.config['UPLOAD_FOLDER'], msj.imagen)
+        if os.path.exists(ruta_img):
+            try:
+                os.remove(ruta_img)
+            except OSError:
+                pass
+    db.session.delete(msj)
+    db.session.commit()
+    flash('Mensaje de soporte eliminado.', 'info')
+    return redirect(url_for('admin_panel', seccion='soporte'))
+
 @app.route('/admin/actualizar_config_referido', methods=['POST'])
 def actualizar_config_referido():
     if 'usuario_id' not in session or session.get('rol') != 'admin':

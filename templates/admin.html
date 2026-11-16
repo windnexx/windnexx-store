@@ -239,11 +239,14 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {% if m.estado != 'Atendido' %}
-                                                <a href="{{ url_for('soporte_atendido', id=m.id) }}" class="btn btn-success btn-sm fw-bold">Marcar Atendido ✓</a>
-                                            {% else %}
-                                                <span class="text-muted small">Listo</span>
-                                            {% endif %}
+                                            <div class="d-flex align-items-center gap-2">
+                                                {% if m.estado != 'Atendido' %}
+                                                    <a href="{{ url_for('soporte_atendido', id=m.id) }}" class="btn btn-success btn-sm fw-bold">Marcar Atendido ✓</a>
+                                                {% else %}
+                                                    <span class="text-muted small">Listo</span>
+                                                {% endif %}
+                                                <a href="{{ url_for('eliminar_soporte', id=m.id) }}" class="btn btn-outline-danger btn-sm fw-bold px-2" title="Quitar mensaje" onclick="return confirm('¿Eliminar este mensaje de soporte?')">✕</a>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -426,7 +429,14 @@
                             <thead class="bg-black text-secondary text-uppercase fs-7 border-bottom border-secondary">
                                 <tr>
                                     <th class="py-3 px-3">Nombre</th>
-                                    <th class="py-3 px-3">Correo</th>
+                                    <th class="py-3 px-3">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span>Correo</span>
+                                            <button type="button" id="btnCopiarCorreos" class="btn btn-outline-info btn-sm py-0 px-2 fw-bold" style="font-size: 11px; text-transform: none;" onclick="copiarTodosLosCorreos()" title="Copiar todos los correos uno debajo del otro">
+                                                📋 Copiar
+                                            </button>
+                                        </div>
+                                    </th>
                                     <th class="py-3 px-3">Teléfono</th>
                                     <th class="py-3 px-3 text-center">Estado (Lima, Perú)</th>
                                     <th class="py-3 px-3 text-center">Rango</th>
@@ -437,7 +447,7 @@
                                 {% for u in confirmados %}
                                 <tr class="border-bottom border-secondary border-opacity-25 user-row" data-timestamp="{{ u.ultima_actividad.timestamp() if u.ultima_actividad else 0 }}">
                                     <td class="fw-bold px-3 py-3 text-white">{{ u.nombre }}</td>
-                                    <td class="px-3 py-3 text-white">{{ u.correo }}</td>
+                                    <td class="px-3 py-3 text-white user-email">{{ u.correo }}</td>
                                     <td class="px-3 py-3 text-light">{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                     
                                     <td class="px-3 py-3 text-center" id="user-status-{{ u.id }}">
@@ -477,6 +487,39 @@
 
 <!-- Script en tiempo real con notificaciones flotantes visibles, sonido y reordenamiento automático -->
 <script>
+function copiarTodosLosCorreos() {
+    const celdasCorreo = document.querySelectorAll('#cuerpoTablaUsuarios .user-email');
+    const listaCorreos = Array.from(celdasCorreo)
+        .map(td => td.innerText.trim())
+        .filter(correo => correo !== '');
+
+    if (listaCorreos.length === 0) {
+        alert("No hay correos disponibles para copiar.");
+        return;
+    }
+
+    const textoFormateado = listaCorreos.join('\n');
+
+    navigator.clipboard.writeText(textoFormateado).then(() => {
+        const btn = document.getElementById('btnCopiarCorreos');
+        const textoOriginal = btn.innerHTML;
+        btn.innerHTML = '✓ Copiado (' + listaCorreos.length + ')';
+        btn.classList.replace('btn-outline-info', 'btn-success');
+        setTimeout(() => {
+            btn.innerHTML = textoOriginal;
+            btn.classList.replace('btn-success', 'btn-outline-info');
+        }, 2500);
+    }).catch(() => {
+        const areaTemp = document.createElement('textarea');
+        areaTemp.value = textoFormateado;
+        document.body.appendChild(areaTemp);
+        areaTemp.select();
+        document.execCommand('copy');
+        document.body.removeChild(areaTemp);
+        alert("¡" + listaCorreos.length + " correos copiados uno debajo del otro!");
+    });
+}
+
 let ultimoPedidoId = 0;
 let ultimoUsuarioId = 0;
 let pendientesAnteriores = -1;
