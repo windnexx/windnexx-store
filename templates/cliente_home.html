@@ -113,14 +113,40 @@
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h6 class="fw-bold">¿Cómo funciona?</h6>
-                        <p class="small mb-0">Comparte tu código personal con tus amigos. Cuando se registren usando tu código y compren el valor equivalente a <strong>1456 fragmentos</strong> (en fragmentos, cajas o pases), ¡recibirás tu cupón de recompensa exclusivo automáticamente!</p>
+                        <p class="small mb-0">Comparte tu código personal con tus amigos. Por cada amigo que se registre usando tu código y complete <strong>cualquier compra por primera vez</strong>, ganarás <strong>{{ premio_por_referido }} fragmentos gratis</strong> acumulables en tu saldo.</p>
                     </div>
 
-                    <div class="mb-4 p-3 bg-light rounded border text-center">
-                        <label class="form-label fw-bold text-secondary">Tu Código de Referido Personal:</label>
-                        <div class="input-group w-50 mx-auto">
-                            <input type="text" id="inputCodigoRef" class="form-control text-center fw-bold fs-5 text-primary" value="{{ usuario.codigo_referido }}" readonly>
-                            <button class="btn btn-outline-success fw-bold" type="button" onclick="copiarCodigoReferido()">Copiar</button>
+                    <div class="row g-3 mb-4">
+                        <!-- TU CÓDIGO PERSONAL -->
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded border text-center h-100 d-flex flex-column justify-content-center">
+                                <label class="form-label fw-bold text-secondary">Tu Código de Referido Personal:</label>
+                                <div class="input-group mx-auto">
+                                    <input type="text" id="inputCodigoRef" class="form-control text-center fw-bold fs-5 text-primary" value="{{ usuario.codigo_referido }}" readonly>
+                                    <button class="btn btn-outline-success fw-bold" type="button" onclick="copiarCodigoReferido()">Copiar</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SALDO ACUMULABLE DE FRAGMENTOS Y RETIRO -->
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded border border-warning text-center h-100">
+                                <label class="form-label fw-bold text-secondary mb-1">Saldo Acumulado de Fragmentos:</label>
+                                <div class="fs-3 fw-bold text-success mb-2">
+                                    💎 {{ usuario.saldo_fragmentos or 0 }} Fragmentos
+                                </div>
+                                {% if (usuario.saldo_fragmentos or 0) > 0 %}
+                                    <form action="{{ url_for('retirar_saldo_referidos') }}" method="POST">
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="jugador_id" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="form-control text-center fw-bold" placeholder="Ingresa tu ID de Jugador" required>
+                                            <button type="submit" class="btn btn-warning fw-bold text-dark">Retirar ⚡</button>
+                                        </div>
+                                        <div class="form-text text-muted small mt-1">Al retirar se genera tu código y pasa directo a recarga.</div>
+                                    </form>
+                                {% else %}
+                                    <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" disabled>Sin saldo para retirar</button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
 
@@ -141,13 +167,13 @@
 
                     <h6 class="fw-bold text-white mb-3">📋 Historial de Mis Amigos Referidos</h6>
                     {% if mis_referidos %}
-                        <div class="table-responsive mb-3">
+                        <div class="table-responsive mb-4">
                             <table class="table table-dark table-hover table-sm table-bordered border-secondary align-middle text-white">
                                 <thead>
                                     <tr>
                                         <th>Amigo Registrado</th>
                                         <th>Fecha de Registro</th>
-                                        <th>Estado de Meta (Equivalente a 1456 Fragmentos)</th>
+                                        <th>Estado de Recompensa (+{{ premio_por_referido }} Fragmentos)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -158,9 +184,9 @@
                                             <td>{{ ref.fecha }}</td>
                                             <td>
                                                 {% if ref.meta_cumplida %}
-                                                    <span class="badge bg-success">Meta Cumplida ✓</span>
+                                                    <span class="badge bg-success">Compra realizada (+{{ premio_por_referido }} Frag.) ✓</span>
                                                 {% else %}
-                                                    <span class="badge bg-warning text-dark">Pendiente de compra</span>
+                                                    <span class="badge bg-warning text-dark">Pendiente de primera compra</span>
                                                 {% endif %}
                                             </td>
                                         </tr>
@@ -168,28 +194,43 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        {% set metacomplida = namespace(valor=false) %}
-                        {% for ref in mis_referidos %}
-                            {% if ref.meta_cumplida %}{% set metacomplida.valor = true %}{% endif %}
-                        {% endfor %}
-
-                        {% if metacomplida.valor %}
-                            <div class="alert alert-success text-center shadow-sm">
-                                <h6 class="fw-bold mb-1">🎉 ¡Felicitaciones! Cumpliste la meta con tus referidos.</h6>
-                                {% set mi_cupon_exclusivo = CodigoPromo.query.filter_by(propietario_id=usuario.id, es_premio_referido=True).first() %}
-                                {% if mi_cupon_exclusivo %}
-                                    <p class="small mb-1">Tu código de cupón de recompensa exclusivo es:</p>
-                                    <span class="badge bg-dark fs-5 px-3 py-2">{{ mi_cupon_exclusivo.codigo }}</span>
-                                    <div class="form-text text-dark small mt-1">Este cupón es personal e intransferible. Aplícalo en tu carrito.</div>
-                                {% else %}
-                                    <p class="small mb-0 text-muted">Tu cupón se está generando en el sistema...</p>
-                                {% endif %}
-                            </div>
-                        {% endif %}
                     {% else %}
-                        <div class="alert alert-dark border-secondary text-center small text-white py-3">
+                        <div class="alert alert-dark border-secondary text-center small text-white py-3 mb-4">
                             Aún no has invitado a ningún amigo. ¡Comparte tu código arriba para empezar!
+                        </div>
+                    {% endif %}
+
+                    {% if historial_canjes_ref %}
+                        <h6 class="fw-bold text-info mb-3">🎟️ Mis Retiros de Fragmentos por Referidos</h6>
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover table-sm table-bordered border-secondary align-middle text-white mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Código Único</th>
+                                        <th>ID Jugador</th>
+                                        <th>Detalle</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for canje in historial_canjes_ref %}
+                                    <tr>
+                                        <td>{{ canje.fecha }}</td>
+                                        <td><span class="badge bg-warning text-dark fw-bold">{{ canje.codigo_operacion }}</span></td>
+                                        <td>{{ canje.jugador_id }}</td>
+                                        <td>{{ canje.detalle }}</td>
+                                        <td>
+                                            {% if canje.estado == 'Completado' %}
+                                                <span class="badge bg-success">Recargado ✓</span>
+                                            {% else %}
+                                                <span class="badge bg-info text-dark">{{ canje.estado }} ⚡</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     {% endif %}
 
@@ -497,6 +538,29 @@
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const saldoReferidos = {{ usuario.saldo_fragmentos or 0 }};
+    const urlReferidos = "{{ url_for('cliente_home', seccion='amigo_referidos') }}";
+    const elementosNav = document.querySelectorAll('nav a, nav button, nav span, .navbar a, .navbar button, .navbar span');
+
+    for (let el of elementosNav) {
+        if (el.children.length === 0 && el.textContent && el.textContent.includes('Perfil:')) {
+            const target = el.closest('a, button, div, span') || el;
+            if (target && target.parentElement && !document.getElementById('cuadro-saldo-favor-nav')) {
+                const badgeSaldo = document.createElement('a');
+                badgeSaldo.id = 'cuadro-saldo-favor-nav';
+                badgeSaldo.href = urlReferidos;
+                badgeSaldo.title = 'Saldo a favor por misiones de referidos (Clic para cobrar)';
+                badgeSaldo.className = 'btn btn-sm fw-bold me-2 d-inline-flex align-items-center gap-1';
+                badgeSaldo.style.cssText = 'background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: 999px; padding: 5px 14px; font-size: 13px; text-decoration: none;';
+                badgeSaldo.innerHTML = `💎 Saldo: <span style="color:#fff;">${saldoReferidos} Frag.</span>`;
+                target.parentElement.insertBefore(badgeSaldo, target);
+            }
+            break;
+        }
+    }
+});
+
 setInterval(() => {
     fetch('/api/ping').catch(() => {});
 }, 60000);
