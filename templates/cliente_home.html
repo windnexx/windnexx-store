@@ -113,7 +113,7 @@
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h6 class="fw-bold">¿Cómo funciona?</h6>
-                        <p class="small mb-0">Comparte tu código personal con tus amigos. Por cada amigo que se registre usando tu código y complete <strong>cualquier compra por primera vez en la tienda (Pases, Cajas o Fragmentos)</strong>, ganarás <strong>{{ premio_por_referido }} fragmentos gratis</strong> acumulables en tu saldo.</p>
+                        <p class="small mb-0">Comparte tu código personal con tus amigos. Por cada amigo que se registre usando tu código y complete <strong>cualquier compra por primera vez en la tienda (Pases, Cajas o Fragmentos)</strong>, ganarás <strong>{{ premio_por_referido }} fragmentos gratis</strong> acumulables en tu saldo (cada cuenta creada son revisadas por el administrador).</p>
                     </div>
 
                     <div class="row g-3 mb-4">
@@ -195,7 +195,7 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="alert alert-dark border-secondary text-center small text-white py-3 mb-4">
+                        <div class="alert alert-dark border-secondary text-center small text-dark fw-bold py-3 mb-4" style="color: #000000;">
                             Aún no has invitado a ningún amigo. ¡Comparte tu código arriba para empezar!
                         </div>
                     {% endif %}
