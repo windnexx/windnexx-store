@@ -10,10 +10,10 @@
 <div id="toastAlerta" class="position-fixed top-0 end-0 p-3" style="z-index: 1080; display: none;">
     <div class="toast align-items-center text-white bg-success border-0 shadow-lg show" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
-            <div class="toast-body fw-bold fs-6">
+            <div class="toast-body fw-bold fs-5 py-3 px-4">
                 🔔 <span id="textoMensajeAlerta">¡Nueva actividad detectada en la tienda!</span>
             </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" onclick="document.getElementById('toastAlerta').style.display='none';"></button>
+            <button type="button" class="btn-close btn-close-white me-3 m-auto" data-bs-dismiss="toast" aria-label="Close" onclick="document.getElementById('toastAlerta').style.display='none';"></button>
         </div>
     </div>
 </div>
@@ -300,7 +300,7 @@
                             <form action="{{ url_for('actualizar_config_referido') }}" method="POST">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Nombre del Premio:</label>
-                                    <input type="text" name="nombre_premio" class="form-control bg-black text-white border-secondary" value="{{ config_referido.nombre_premio if config_referido else 'Cupón de Recompensa' }}" required>
+                                    <input type="text" name="nombre_premio" class="form-control bg-black text-white border-secondary" value="{{ config_referido.nombre_premio if config_referido else 'Cupón' }}" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Porcentaje de Descuento (%):</label>
@@ -345,6 +345,7 @@
 
         {% elif seccion == 'gestion_usuarios' %}
             
+            <!-- SOLICITUDES DE REGISTRO PENDIENTES -->
             <div class="card shadow-sm border-warning bg-dark text-white mb-4">
                 <div class="card-header bg-warning text-dark fw-bold">
                     ⏳ Solicitudes de Registro Pendientes (Aprobación Requerida)
@@ -377,7 +378,43 @@
                 </div>
             </div>
 
-            <!-- GESTIÓN DE USUARIOS ACTIVOS (CORREGIDO: Correos en blanco, ordenados por actividad descendente) -->
+            <!-- SOLICITUDES DE RECUPERACIÓN DE CONTRASEÑA -->
+            <div class="card shadow-sm border-danger bg-dark text-white mb-4">
+                <div class="card-header bg-danger text-white fw-bold">
+                    🔑 Solicitudes de Recuperación de Contraseña
+                </div>
+                <div class="card-body">
+                    {% if solicitudes_reset %}
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover align-middle small">
+                                <thead class="table-secondary text-dark">
+                                    <tr><th>Usuario</th><th>Correo</th><th>Teléfono</th><th>Nueva Contraseña y Acción</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for u in solicitudes_reset %}
+                                    <tr>
+                                        <td class="fw-bold text-white">{{ u.nombre }}</td>
+                                        <td class="text-white">{{ u.correo }}</td>
+                                        <td>{{ u.telefono }}</td>
+                                        <td>
+                                            <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="input-group input-group-sm">
+                                                <input type="text" name="nueva_password" class="form-control bg-black text-white border-secondary" placeholder="Nueva clave" required>
+                                                <button type="submit" class="btn btn-success fw-bold">Guardar</button>
+                                                <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-outline-secondary" title="Ignorar">✕</a>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3 my-0 small">No hay solicitudes de restablecimiento de contraseña.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- GESTIÓN DE USUARIOS ACTIVOS -->
             <div class="card shadow-lg border-secondary bg-dark text-white rounded-4 overflow-hidden">
                 <div class="card-header bg-black text-white fw-bold py-3 px-4 border-bottom border-secondary d-flex align-items-center justify-content-between">
                     <span><i class="bi bi-people-fill text-info me-2"></i> Gestión de Usuarios Activos</span>
@@ -400,7 +437,6 @@
                                 {% for u in confirmados %}
                                 <tr class="border-bottom border-secondary border-opacity-25 user-row" data-timestamp="{{ u.ultima_actividad.timestamp() if u.ultima_actividad else 0 }}">
                                     <td class="fw-bold px-3 py-3 text-white">{{ u.nombre }}</td>
-                                    <!-- CORREGIDO: Correo en texto blanco visible -->
                                     <td class="px-3 py-3 text-white">{{ u.correo }}</td>
                                     <td class="px-3 py-3 text-light">{{ u.telefono if u.telefono else 'No registrado' }}</td>
                                     
@@ -458,7 +494,7 @@ fetch('/api/verificar-alertas')
 
 // Bucle en tiempo real cada 5 segundos
 setInterval(() => {
-    // 1. Actualiza el estado online y reordena la tabla de usuarios dinámicamente de más reciente a más antiguo
+    // 1. Actualiza el estado online y reordena la tabla de usuarios dinámicamente
     fetch('/api/estado-usuarios')
         .then(res => res.json())
         .then(estados => {
@@ -482,7 +518,7 @@ setInterval(() => {
                     }
                 });
 
-                // Reordena las filas en tiempo real según el timestamp (más reciente arriba)
+                // Reordena las filas según timestamp (más reciente arriba)
                 filas.sort((a, b) => parseFloat(b.getAttribute('data-timestamp')) - parseFloat(a.getAttribute('data-timestamp')));
                 filas.forEach(fila => tbody.appendChild(fila));
             }
@@ -505,7 +541,7 @@ setInterval(() => {
                         audio.play().catch(e => console.log("Audio bloqueado:", e));
                     }
                     
-                    // Muestra el banner flotante visible
+                    // Muestra el banner flotante visible con el texto adecuado
                     let toast = document.getElementById('toastAlerta');
                     let texto = document.getElementById('textoMensajeAlerta');
                     if (texto && data.mensaje) {
@@ -515,10 +551,10 @@ setInterval(() => {
                         toast.style.display = 'block';
                     }
                     
-                    // Espera 1.5 segundos para que se vea el aviso y suene antes de recargar
+                    // Espera 2 segundos para que se alcance a leer el aviso y sonar antes de recargar
                     setTimeout(() => {
                         location.reload();
-                    }, 1500);
+                    }, 2000);
                 }
             }
         }).catch(err => {});
