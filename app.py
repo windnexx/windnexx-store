@@ -53,6 +53,7 @@ class Usuario(db.Model):
     codigo_referido = db.Column(db.String(20), unique=True, nullable=True)
     referido_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
     rango = db.Column(db.String(20), default='Bronce')
+    saldo_fragmentos = db.Column(db.Integer, default=0)
 
 # Modelo de Código Promocional
 class CodigoPromo(db.Model):
@@ -68,8 +69,9 @@ class CodigoPromo(db.Model):
 # Tabla de Configuración Global de Premios de Referidos
 class ConfiguracionReferido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    nombre_premio = db.Column(db.String(100), default='Descuento por Referido')
-    descuento_porcentaje = db.Column(db.Float, default=6.0)
+    nombre_premio = db.Column(db.String(100), default='Bono por Amigo Referido')
+    descuento_porcentaje = db.Column(db.Float, default=20.0)
+    fragmentos_por_referido = db.Column(db.Integer, default=20)
 
 # Tabla auxiliar para control de códigos
 class UsoCodigoUsuario(db.Model):
@@ -132,6 +134,8 @@ with app.app_context():
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS codigo_referido VARCHAR(20);'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS referido_por_id INTEGER;'))
             connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS rango VARCHAR(20) DEFAULT \'Bronce\';'))
+            connection.execute(text('ALTER TABLE usuario ADD COLUMN IF NOT EXISTS saldo_fragmentos INTEGER DEFAULT 0;'))
+            connection.execute(text('ALTER TABLE configuracion_referido ADD COLUMN IF NOT EXISTS fragmentos_por_referido INTEGER DEFAULT 20;'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_limite VARCHAR(20) DEFAULT \'ilimitado\';'))
@@ -144,7 +148,11 @@ with app.app_context():
         print("Aviso al verificar columnas en la BD:", e)
     
     if not ConfiguracionReferido.query.first():
-        conf_inicial = ConfiguracionReferido(nombre_premio='Cupón de Recompensa de Referido', descuento_porcentaje=6.0)
+        conf_inicial = ConfiguracionReferido(
+            nombre_premio='Bono por Amigo Referido',
+            descuento_porcentaje=20.0,
+            fragmentos_por_referido=20
+        )
         db.session.add(conf_inicial)
         db.session.commit()
 
@@ -243,6 +251,9 @@ def calcular_estadisticas_usuario(usuario_id):
     monto_total_comprado = 0.0
 
     for p in pedidos_completados:
+        if p.total <= 0 and p.telefono_digitos == 'REF':
+            continue
+
         m_frag = re.search(r'Fragmentos \(x(\d+)\)', p.detalle)
         if m_frag:
             total_fragmentos += int(m_frag.group(1))
@@ -259,6 +270,34 @@ def calcular_estadisticas_usuario(usuario_id):
 
     fragmentos_equivalentes = int(round(monto_total_comprado / PRECIOS['Fragmentos']))
     return total_pases, total_fragmentos, total_cajas, fragmentos_equivalentes
+
+def otorgar_bono_referido_si_aplica(cliente_id):
+    cliente = db.session.get(Usuario, cliente_id)
+    if not cliente or not cliente.referido_por_id:
+        return
+
+    tiene_compra_pagada = Pedido.query.filter(
+        Pedido.usuario_id == cliente.id,
+        Pedido.estado == 'Completado',
+        Pedido.total > 0
+    ).first()
+
+    if not tiene_compra_pagada:
+        return
+
+    reg_ref = RegistroReferido.query.filter_by(
+        patrocinador_id=cliente.referido_por_id,
+        referido_id=cliente.id
+    ).first()
+
+    if reg_ref and not reg_ref.meta_cumplida:
+        reg_ref.meta_cumplida = True
+        patrocinador = db.session.get(Usuario, cliente.referido_por_id)
+        if patrocinador:
+            config_ref = ConfiguracionReferido.query.first()
+            premio_frag = config_ref.fragmentos_por_referido if (config_ref and config_ref.fragmentos_por_referido) else 20
+            patrocinador.saldo_fragmentos = (patrocinador.saldo_fragmentos or 0) + premio_frag
+        db.session.commit()
 
 def generar_xlsx_memoria(filas_datos):
     columnas_letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
@@ -406,6 +445,7 @@ def register():
             confirmado=False,
             categoria='Cliente',
             rango='Bronce',
+            saldo_fragmentos=0,
             referido_por_id=patrocinador.id if patrocinador else None,
             codigo_referido=f"WIND-TEMP-{temp_hash}"
         )
@@ -489,7 +529,7 @@ def admin_panel():
 
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
-    registros_referidos = RegistroReferido.query.all()
+    registros_referidos = RegistroReferido.query.order_by(RegistroReferido.id.desc()).all()
     config_referido = ConfiguracionReferido.query.first()
     mensajes_soporte = MensajeSoporte.query.order_by(MensajeSoporte.id.desc()).all()
     publicidad = AnuncioPublicidad.query.first()
@@ -627,20 +667,23 @@ def actualizar_config_referido():
         return redirect(url_for('login'))
     
     try:
-        nuevo_descuento = float(request.form.get('descuento_referido', 6.0))
-        nombre_premio = request.form.get('nombre_premio', 'Cupón de Recompensa de Referido').strip()
+        nuevos_fragmentos = int(request.form.get('fragmentos_referido', 20))
+        if nuevos_fragmentos < 1:
+            nuevos_fragmentos = 20
+        nombre_premio = request.form.get('nombre_premio', 'Bono por Amigo Referido').strip()
         
         config = ConfiguracionReferido.query.first()
         if not config:
             config = ConfiguracionReferido()
             db.session.add(config)
             
-        config.descuento_porcentaje = nuevo_descuento
+        config.fragmentos_por_referido = nuevos_fragmentos
+        config.descuento_porcentaje = float(nuevos_fragmentos)
         config.nombre_premio = nombre_premio
         db.session.commit()
-        flash('Configuración del premio de referidos actualizada exitosamente.', 'success')
+        flash(f'Premio de referidos actualizado a {nuevos_fragmentos} fragmentos por amigo.', 'success')
     except ValueError:
-        flash('Valor de descuento inválido.', 'danger')
+        flash('Cantidad de fragmentos inválida.', 'danger')
         
     return redirect(url_for('admin_panel', seccion='codigos_promo'))
 
@@ -784,32 +827,7 @@ def completar_recarga(id):
     pedido.fecha = h_lima.strftime('%d/%m/%Y %H:%M')
     db.session.commit()
 
-    cliente_pedido = Usuario.query.get(pedido.usuario_id)
-    if cliente_pedido and cliente_pedido.referido_por_id:
-        _, _, _, frag_equiv_total = calcular_estadisticas_usuario(cliente_pedido.id)
-        if frag_equiv_total >= 1456:
-            reg_ref = RegistroReferido.query.filter_by(patrocinador_id=cliente_pedido.referido_por_id, referido_id=cliente_pedido.id).first()
-            if reg_ref and not reg_ref.meta_cumplida:
-                reg_ref.meta_cumplida = True
-                db.session.commit()
-
-                patrocinador = Usuario.query.get(cliente_pedido.referido_por_id)
-                if patrocinador:
-                    config_ref = ConfiguracionReferido.query.first()
-                    porcentaje_premio = config_ref.descuento_porcentaje if config_ref else 6.0
-                    
-                    codigo_personal = f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}"
-                    existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
-                    if not existe_cupon:
-                        nuevo_cupon_ref = CodigoPromo(
-                            codigo=codigo_personal,
-                            descuento_porcentaje=porcentaje_premio,
-                            tipo_limite='una_por_cuenta',
-                            es_premio_referido=True,
-                            propietario_id=patrocinador.id
-                        )
-                        db.session.add(nuevo_cupon_ref)
-                        db.session.commit()
+    otorgar_bono_referido_si_aplica(pedido.usuario_id)
 
     flash(f'Recarga completada para el pedido #{pedido.id}. Movido al historial.', 'success')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
@@ -867,6 +885,48 @@ def eliminar_usuario(id):
 
     return redirect(url_for('admin_panel', seccion='gestion_usuarios'))
 
+@app.route('/cliente/retirar_referidos', methods=['POST'])
+def retirar_saldo_referidos():
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return redirect(url_for('login'))
+
+    usuario_actual = db.session.get(Usuario, session['usuario_id'])
+    jugador_id = request.form.get('jugador_id', '').strip()
+    saldo_disponible = usuario_actual.saldo_fragmentos or 0
+
+    if not jugador_id:
+        flash('Debes ingresar tu ID de jugador para retirar tus fragmentos.', 'danger')
+        return redirect(url_for('cliente_home', seccion='amigo_referidos'))
+
+    if saldo_disponible <= 0:
+        flash('Aún no tienes saldo de fragmentos disponible para retirar.', 'warning')
+        return redirect(url_for('cliente_home', seccion='amigo_referidos'))
+
+    codigo_unico_canje = f"CANJE-REF-{usuario_actual.id}-{os.urandom(2).hex().upper()}"
+    h_lima = hora_lima()
+
+    nuevo_pedido_canje = Pedido(
+        usuario_id=usuario_actual.id,
+        nombre_cliente=usuario_actual.nombre,
+        jugador_id=jugador_id,
+        detalle=f"Canje Referidos ({saldo_disponible} Fragmentos)",
+        total=0.0,
+        telefono_digitos='REF',
+        codigo_operacion=codigo_unico_canje,
+        codigo_promo=codigo_unico_canje,
+        descuento_aplicado=0.0,
+        estado='Recargando',
+        solo_fecha=h_lima.strftime('%d/%m/%Y'),
+        fecha=h_lima.strftime('%d/%m/%Y %H:%M')
+    )
+
+    usuario_actual.saldo_fragmentos = 0
+    db.session.add(nuevo_pedido_canje)
+    db.session.commit()
+
+    flash(f'¡Retiro exitoso! Se generó tu código {codigo_unico_canje} y tus {saldo_disponible} fragmentos pasaron directo a recarga ⚡', 'success')
+    return redirect(url_for('cliente_home', seccion='amigo_referidos'))
+
 @app.route('/cliente/home')
 def cliente_home():
     if 'usuario_id' not in session or session.get('rol') != 'cliente':
@@ -884,22 +944,27 @@ def cliente_home():
     codigo_pat = request.args.get('codigo_patrocinador', '').strip().upper()
     usuario_actual = db.session.get(Usuario, session['usuario_id'])
     
-    if codigo_pat and not usuario_actual.referido_por_id:
-        patrocinador = Usuario.query.filter_by(codigo_referido=codigo_pat).first()
-        if patrocinador and patrocinador.id != usuario_actual.id:
-            usuario_actual.referido_por_id = patrocinador.id
-            nuevo_reg = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=usuario_actual.id)
-            db.session.add(nuevo_reg)
-            db.session.commit()
-            
-            _, _, _, frag_equiv_actual = calcular_estadisticas_usuario(usuario_actual.id)
-            if frag_equiv_actual >= 1456:
-                nuevo_reg.meta_cumplida = True
+    ya_compro = Pedido.query.filter(
+        Pedido.usuario_id == usuario_actual.id,
+        Pedido.total > 0
+    ).first() is not None
+    
+    if codigo_pat:
+        if ya_compro:
+            flash('Ya realizaste tu primera compra. Esta opción es exclusiva para cuentas nuevas sin compras.', 'danger')
+        elif not usuario_actual.referido_por_id:
+            patrocinador = Usuario.query.filter_by(codigo_referido=codigo_pat).first()
+            if patrocinador and patrocinador.id != usuario_actual.id:
+                usuario_actual.referido_por_id = patrocinador.id
+                nuevo_reg = RegistroReferido(patrocinador_id=patrocinador.id, referido_id=usuario_actual.id)
+                db.session.add(nuevo_reg)
                 db.session.commit()
                 
-            flash('¡Te has vinculado exitosamente con el código de tu amigo!', 'success')
-        else:
-            flash('El código de patrocinador ingresado no es válido.', 'danger')
+                otorgar_bono_referido_si_aplica(usuario_actual.id)
+                    
+                flash('¡Te has vinculado exitosamente con el código de tu amigo!', 'success')
+            else:
+                flash('El código de patrocinador ingresado no es válido.', 'danger')
         return redirect(url_for('cliente_home', seccion='amigo_referidos'))
 
     total_pases, total_fragmentos, total_cajas, puntos_fragmentos = calcular_estadisticas_usuario(usuario_actual.id)
@@ -913,29 +978,19 @@ def cliente_home():
         progreso_porcentaje = int((puntos_fragmentos / meta_rango) * 100)
     db.session.commit()
 
-    mis_referidos = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).all()
+    mis_referidos = RegistroReferido.query.filter_by(patrocinador_id=usuario_actual.id).order_by(RegistroReferido.id.desc()).all()
     
     for ref in mis_referidos:
         if not ref.meta_cumplida:
-            _, _, _, f_eq = calcular_estadisticas_usuario(ref.referido_id)
-            if f_eq >= 1456:
-                ref.meta_cumplida = True
-                patrocinador = Usuario.query.get(ref.patrocinador_id)
-                if patrocinador:
-                    config_ref = ConfiguracionReferido.query.first()
-                    porcentaje_premio = config_ref.descuento_porcentaje if config_ref else 6.0
-                    
-                    existe_cupon = CodigoPromo.query.filter_by(propietario_id=patrocinador.id, es_premio_referido=True).first()
-                    if not existe_cupon:
-                        nuevo_cupon_ref = CodigoPromo(
-                            codigo=f"PREMIO-{patrocinador.id}-{os.urandom(2).hex().upper()}",
-                            descuento_porcentaje=porcentaje_premio,
-                            tipo_limite='una_por_cuenta',
-                            es_premio_referido=True,
-                            propietario_id=patrocinador.id
-                        )
-                        db.session.add(nuevo_cupon_ref)
-    db.session.commit()
+            otorgar_bono_referido_si_aplica(ref.referido_id)
+
+    config_referido = ConfiguracionReferido.query.first()
+    premio_por_referido = config_referido.fragmentos_por_referido if (config_referido and config_referido.fragmentos_por_referido) else 20
+
+    historial_canjes_ref = Pedido.query.filter_by(
+        usuario_id=usuario_actual.id,
+        telefono_digitos='REF'
+    ).order_by(Pedido.id.desc()).all()
 
     historial_compras = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).all()
     publicidad = AnuncioPublicidad.query.filter_by(activo=True).first()
@@ -965,6 +1020,7 @@ def cliente_home():
         'cliente_home.html', 
         nombre=session.get('nombre'), 
         usuario=usuario_actual,
+        ya_compro=ya_compro,
         total_pases=total_pases,
         total_fragmentos=total_fragmentos,
         total_cajas=total_cajas,
@@ -972,6 +1028,8 @@ def cliente_home():
         puntos_fragmentos=puntos_fragmentos,
         meta_rango=meta_rango,
         mis_referidos=mis_referidos,
+        premio_por_referido=premio_por_referido,
+        historial_canjes_ref=historial_canjes_ref,
         publicidad=publicidad,
         Usuario=Usuario,
         CodigoPromo=CodigoPromo,
@@ -990,12 +1048,21 @@ def agregar_carrito():
         return redirect(url_for('login'))
         
     producto = request.form.get('producto')
+    minimos = {
+        'Fragmentos': 25,
+        'Cajas': 5,
+        'Pases': 1
+    }
+    minimo_requerido = minimos.get(producto, 1)
+
     try:
-        cantidad = int(request.form.get('cantidad', 1))
-        if cantidad < 1:
-            cantidad = 1
+        cantidad = int(request.form.get('cantidad', minimo_requerido))
     except ValueError:
-        cantidad = 1
+        cantidad = minimo_requerido
+
+    if cantidad < minimo_requerido:
+        flash(f'La cantidad mínima para {producto} es de {minimo_requerido} unidades.', 'warning')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
     
     if 'carrito' not in session:
         session['carrito'] = []

@@ -150,7 +150,11 @@
                         </div>
                     </div>
 
-                    {% if not usuario.referido_por_id %}
+                    {% if usuario.referido_por_id %}
+                        <div class="alert alert-success text-center small mb-4">
+                            ✓ Ya estás vinculado con el código de tu patrocinador exitosamente.
+                        </div>
+                    {% elif not ya_compro %}
                         <form action="{{ url_for('cliente_home') }}" method="GET" class="p-3 bg-light rounded border mb-4">
                             <input type="hidden" name="seccion" value="amigo_referidos">
                             <label class="form-label fw-bold small text-dark">¿Te invitó un amigo? Ingresa su código aquí (Solo cuentas nuevas):</label>
@@ -159,10 +163,6 @@
                                 <button class="btn btn-dark fw-bold" type="submit">Vincular Código</button>
                             </div>
                         </form>
-                    {% else %}
-                        <div class="alert alert-success text-center small mb-4">
-                            ✓ Ya estás vinculado con el código de tu patrocinador exitosamente.
-                        </div>
                     {% endif %}
 
                     <h6 class="fw-bold text-white mb-3">📋 Historial de Mis Amigos Referidos</h6>
@@ -253,18 +253,19 @@
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
                         
-                        <!-- FRAGMENTOS -->
+                        <!-- FRAGMENTOS (Mínimo 25) -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
                                 <img src="{{ url_for('static', filename='fragmentos.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Fragmentos">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold mb-2">Fragmentos</h6>
+                                    <h6 class="card-title fw-bold mb-1">Fragmentos</h6>
+                                    <small class="text-muted mb-2" style="font-size: 11px;">Mínimo: 25 unidades</small>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
                                         <input type="hidden" name="producto" value="Fragmentos">
                                         <div class="input-group input-group-sm mb-2">
                                             <span class="input-group-text">Cant.</span>
-                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" required>
+                                            <input type="number" name="cantidad" class="form-control text-center" value="25" min="25" onchange="if(this.value < 25) this.value = 25;" required>
                                         </div>
                                         <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
                                     </form>
@@ -272,18 +273,19 @@
                             </div>
                         </div>
 
-                        <!-- CAJAS -->
+                        <!-- CAJAS (Mínimo 5) -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
                                 <img src="{{ url_for('static', filename='cajas.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Cajas">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
-                                    <h6 class="card-title fw-bold mb-2">Cajas</h6>
+                                    <h6 class="card-title fw-bold mb-1">Cajas</h6>
+                                    <small class="text-muted mb-2" style="font-size: 11px;">Mínimo: 5 unidades</small>
                                     <form action="{{ url_for('agregar_carrito') }}" method="POST">
                                         <input type="hidden" name="producto" value="Cajas">
                                         <div class="input-group input-group-sm mb-2">
                                             <span class="input-group-text">Cant.</span>
-                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" required>
+                                            <input type="number" name="cantidad" class="form-control text-center" value="5" min="5" onchange="if(this.value < 5) this.value = 5;" required>
                                         </div>
                                         <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
                                     </form>
@@ -302,7 +304,7 @@
                                         <input type="hidden" name="producto" value="Pases">
                                         <div class="input-group input-group-sm mb-2">
                                             <span class="input-group-text">Cant.</span>
-                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" required>
+                                            <input type="number" name="cantidad" class="form-control text-center" value="1" min="1" onchange="if(this.value < 1) this.value = 1;" required>
                                         </div>
                                         <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Agregar</button>
                                     </form>
@@ -310,7 +312,7 @@
                             </div>
                         </div>
 
-                        <!-- PRODUCTO: DIAMANTES EN MANTENIMIENTO (Con etiqueta mejorada, grande y legible) -->
+                        <!-- PRODUCTO: DIAMANTES EN MANTENIMIENTO -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
                                 <span class="position-absolute top-0 start-50 translate-middle badge rounded-pill bg-warning text-dark px-3 py-1 fw-bold shadow" style="font-size: 11px; margin-top: -5px; letter-spacing: 0.5px;">
@@ -565,7 +567,6 @@ setInterval(() => {
     fetch('/api/ping').catch(() => {});
 }, 60000);
 
-// Script para verificar en tiempo real si el admin validó o completó el pedido del cliente
 function reproducirSonidoCliente() {
     const audio = document.getElementById('timbre-cliente');
     if(audio) {
