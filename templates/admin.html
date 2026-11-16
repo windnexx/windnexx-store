@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<!-- Elemento de audio invisible para reproducir la notificación sonora -->
+<!-- Elemento de audio invisible para la notificación sonora -->
 <audio id="audioNotificacion" preload="auto">
     <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
 </audio>
@@ -10,31 +10,31 @@
     
     <!-- MENÚ LATERAL ADMINISTRADOR -->
     <div class="col-md-3 mb-4">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white fw-bold py-3">
-                <i class="bi bi-shield-lock-fill"></i> Panel Administrador
+        <div class="card shadow-sm border-0 bg-dark text-white">
+            <div class="card-header bg-black text-white fw-bold py-3 border-bottom border-secondary">
+                <i class="bi bi-shield-lock-fill text-primary"></i> Panel Administrador
             </div>
-            <div class="list-group list-group-flush">
-                <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_pendientes' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center">
+            <div class="list-group list-group-flush bg-transparent">
+                <a href="{{ url_for('admin_panel', seccion='pedidos_pendientes') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'pedidos_pendientes' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center border-secondary">
                     <span>📦 Pedidos Pendientes</span>
                     <span class="badge bg-danger rounded-pill">{{ pedidos_validacion|length }}</span>
                 </a>
-                <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action {% if seccion == 'pedidos_recargando' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('admin_panel', seccion='pedidos_recargando') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'pedidos_recargando' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center border-secondary">
                     <span>⚡ Recargando</span>
                     <span class="badge bg-warning text-dark rounded-pill">{{ pedidos_recargando|length }}</span>
                 </a>
-                <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action {% if seccion == 'historial_envios' %}active fw-bold{% endif %}">
+                <a href="{{ url_for('admin_panel', seccion='historial_envios') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'historial_envios' %}active fw-bold{% endif %} border-secondary">
                     📋 Historial de Envíos
                 </a>
-                <a href="{{ url_for('admin_panel', seccion='soporte') }}" class="list-group-item list-group-item-action {% if seccion == 'soporte' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('admin_panel', seccion='soporte') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'soporte' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center border-secondary">
                     <span>🎧 Mensajes de Soporte</span>
                     <span class="badge bg-danger rounded-pill">{{ mensajes_soporte|rejectattr('estado', 'equalto', 'Atendido')|list|length }}</span>
                 </a>
-                <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action {% if seccion == 'codigos_promo' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('admin_panel', seccion='codigos_promo') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'codigos_promo' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center border-secondary">
                     <span>🎟️ Códigos y Referidos</span>
                     <span class="badge bg-info text-dark rounded-pill">{{ codigos_promo|length }}</span>
                 </a>
-                <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('admin_panel', seccion='gestion_usuarios') }}" class="list-group-item list-group-item-action bg-transparent text-light {% if seccion == 'gestion_usuarios' %}active fw-bold{% endif %} d-flex justify-content-between align-items-center border-secondary">
                     <span>👥 Gestión de Usuarios</span>
                     <span class="badge bg-primary rounded-pill">{{ pendientes|length + solicitudes_reset|length }}</span>
                 </a>
@@ -46,15 +46,15 @@
     <div class="col-md-9">
 
         {% if seccion == 'pedidos_pendientes' %}
-            <div class="card shadow-sm border-dark">
-                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+            <div class="card shadow-sm border-secondary bg-dark text-white">
+                <div class="card-header bg-black text-white fw-bold d-flex justify-content-between align-items-center border-bottom border-secondary">
                     <span>📦 Pedidos en Validación de Pago</span>
                 </div>
                 <div class="card-body">
                     {% if pedidos_validacion %}
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle small">
-                                <thead class="table-light">
+                            <table class="table table-dark table-hover align-middle small">
+                                <thead class="table-secondary text-dark">
                                     <tr><th>ID</th><th>Cliente</th><th>Destino (ID)</th><th>Productos</th><th>Total</th><th>Operación Yape</th><th>Acción</th></tr>
                                 </thead>
                                 <tbody>
@@ -62,11 +62,11 @@
                                     <tr>
                                         <td class="fw-bold">#{{ p.id }}</td>
                                         <td>{{ p.nombre_cliente }}</td>
-                                        <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                        <td><span class="badge bg-black border border-secondary text-info">{{ p.jugador_id }}</span></td>
                                         <td>{{ p.detalle }}</td>
                                         <td class="fw-bold text-success">S/ {{ p.total }}</td>
                                         <td>
-                                            <span class="text-primary fw-bold">Tel: ...{{ p.telefono_digitos }}</span><br>
+                                            <span class="text-info fw-bold">Tel: ...{{ p.telefono_digitos }}</span><br>
                                             <small class="text-muted">Op: {{ p.codigo_operacion }}</small>
                                         </td>
                                         <td>
@@ -85,15 +85,15 @@
             </div>
 
         {% elif seccion == 'pedidos_recargando' %}
-            <div class="card shadow-sm border-warning">
+            <div class="card shadow-sm border-warning bg-dark text-white">
                 <div class="card-header bg-warning text-dark fw-bold">
                     ⚡ Pedidos en Proceso de Recarga
                 </div>
                 <div class="card-body">
                     {% if pedidos_recargando %}
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle small">
-                                <thead class="table-light">
+                            <table class="table table-dark table-hover align-middle small">
+                                <thead class="table-secondary text-dark">
                                     <tr><th>ID</th><th>Cliente</th><th>Destino (ID)</th><th>Productos</th><th>Total</th><th>Operación Yape</th><th>Acción</th></tr>
                                 </thead>
                                 <tbody>
@@ -101,7 +101,7 @@
                                     <tr>
                                         <td class="fw-bold">#{{ p.id }}</td>
                                         <td>{{ p.nombre_cliente }}</td>
-                                        <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                        <td><span class="badge bg-black border border-secondary text-info">{{ p.jugador_id }}</span></td>
                                         <td>{{ p.detalle }}</td>
                                         <td class="fw-bold text-success">S/ {{ p.total }}</td>
                                         <td>Op: {{ p.codigo_operacion }}</td>
@@ -120,8 +120,8 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
-            <div class="card shadow-sm border-secondary mb-4">
-                <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between align-items-center">
+            <div class="card shadow-sm border-secondary bg-dark text-white mb-4">
+                <div class="card-header bg-black text-white fw-bold d-flex justify-content-between align-items-center border-bottom border-secondary">
                     <span>📋 Historial de Envíos Realizados</span>
                     <a href="{{ url_for('vaciar_historial_hoy') }}" class="btn btn-warning btn-sm fw-bold text-dark px-3 shadow-sm" title="Vaciar historial de hoy" onclick="return confirm('¿Vaciar y archivar las ventas de hoy?')">
                         <i class="bi bi-trash-fill"></i> Vaciar historial de hoy
@@ -129,12 +129,11 @@
                 </div>
                 <div class="card-body">
                     
-                    <!-- Ventas del Día (Hoy) -->
                     <h6 class="fw-bold text-success mb-3"><i class="bi bi-calendar-check"></i> Ventas del Día (Hoy)</h6>
                     {% if pedidos_hoy %}
                         <div class="table-responsive mb-4">
-                            <table class="table table-hover align-middle small table-bordered">
-                                <thead class="table-light">
+                            <table class="table table-dark table-hover align-middle small table-bordered border-secondary">
+                                <thead class="table-secondary text-dark">
                                     <tr><th>Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th></tr>
                                 </thead>
                                 <tbody>
@@ -142,7 +141,7 @@
                                     <tr>
                                         <td>{{ p.fecha }}</td>
                                         <td class="fw-bold">{{ p.nombre_cliente }}</td>
-                                        <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                        <td><span class="badge bg-black border border-secondary text-info">{{ p.jugador_id }}</span></td>
                                         <td>{{ p.detalle }}</td>
                                         <td class="fw-bold text-success">S/ {{ p.total }}</td>
                                     </tr>
@@ -154,12 +153,11 @@
                         <p class="text-muted small mb-4 italic">No hay ventas registradas el día de hoy todavía.</p>
                     {% endif %}
 
-                    <!-- Historial de Días Anteriores (Solo fechas colapsables) -->
-                    <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-folder2-open"></i> Historial de Días Anteriores (Hacer clic en la fecha para ver)</h6>
+                    <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-folder2-open"></i> Historial de Días Anteriores</h6>
                     {% if historicos_agrupados %}
                         <div class="accordion" id="accordionHistorico">
                             {% for fecha, lista_pedidos in historicos_agrupados.items() %}
-                                <div class="accordion-item bg-dark border-secondary mb-2">
+                                <div class="accordion-item bg-black border-secondary mb-2">
                                     <h2 class="accordion-header" id="heading_{{ loop.index }}">
                                         <button class="accordion-button collapsed bg-dark text-white fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_{{ loop.index }}" aria-expanded="false" aria-controls="collapse_{{ loop.index }}">
                                             📅 Fecha: {{ fecha }} <span class="badge bg-primary ms-3">{{ lista_pedidos|length }} ventas</span>
@@ -168,7 +166,7 @@
                                     <div id="collapse_{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading_{{ loop.index }}" data-bs-parent="#accordionHistorico">
                                         <div class="accordion-body bg-black">
                                             <div class="table-responsive">
-                                                <table class="table table-sm table-striped align-middle text-light small mb-0">
+                                                <table class="table table-dark table-sm align-middle text-light small mb-0">
                                                     <thead>
                                                         <tr><th>Hora/Fecha</th><th>Cliente</th><th>ID Destino</th><th>Detalle</th><th>Total</th></tr>
                                                     </thead>
@@ -177,7 +175,7 @@
                                                         <tr>
                                                             <td>{{ p.fecha }}</td>
                                                             <td>{{ p.nombre_cliente }}</td>
-                                                            <td><span class="badge bg-dark">{{ p.jugador_id }}</span></td>
+                                                            <td><span class="badge bg-dark border border-secondary">{{ p.jugador_id }}</span></td>
                                                             <td>{{ p.detalle }}</td>
                                                             <td class="fw-bold text-success">S/ {{ p.total }}</td>
                                                         </tr>
@@ -198,15 +196,15 @@
             </div>
 
         {% elif seccion == 'soporte' %}
-            <div class="card shadow-sm border-secondary">
+            <div class="card shadow-sm border-secondary bg-dark text-white">
                 <div class="card-header bg-primary text-white fw-bold">
                     🎧 Mensajes de Soporte y Consultas de Clientes
                 </div>
                 <div class="card-body">
                     {% if mensajes_soporte %}
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle small">
-                                <thead class="table-light">
+                            <table class="table table-dark table-hover align-middle small">
+                                <thead class="table-secondary text-dark">
                                     <tr><th>Fecha</th><th>Cliente</th><th>Contacto</th><th>Mensaje / Captura</th><th>Estado</th><th>Acción</th></tr>
                                 </thead>
                                 <tbody>
@@ -249,7 +247,7 @@
         {% elif seccion == 'codigos_promo' %}
             <div class="row g-4">
                 <div class="col-md-6">
-                    <div class="card shadow-sm border-success">
+                    <div class="card shadow-sm border-success bg-dark text-white">
                         <div class="card-header bg-success text-white fw-bold">
                             🎟️ Crear Código Promocional
                         </div>
@@ -257,15 +255,15 @@
                             <form action="{{ url_for('crear_codigo') }}" method="POST">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Código:</label>
-                                    <input type="text" name="codigo" class="form-control text-uppercase" placeholder="EJ. WINGS20" required>
+                                    <input type="text" name="codigo" class="form-control bg-black text-white border-secondary text-uppercase" placeholder="EJ. WINGS20" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Descuento (%):</label>
-                                    <input type="number" step="0.1" name="descuento" class="form-control" placeholder="Ej. 10" required>
+                                    <input type="number" step="0.1" name="descuento" class="form-control bg-black text-white border-secondary" placeholder="Ej. 10" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Tipo de Límite de Uso:</label>
-                                    <select name="tipo_limite" class="form-select">
+                                    <select name="tipo_limite" class="form-select bg-black text-white border-secondary">
                                         <option value="ilimitado">Ilimitado</option>
                                         <option value="una_por_cuenta">Una sola vez por cuenta</option>
                                         <option value="primeras_cuentas">Limitado a las primeras N cuentas</option>
@@ -273,7 +271,7 @@
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Máximo de cuentas:</label>
-                                    <input type="number" name="max_usos_primeras" class="form-control" value="0">
+                                    <input type="number" name="max_usos_primeras" class="form-control bg-black text-white border-secondary" value="0">
                                 </div>
                                 <button type="submit" class="btn btn-success w-100 fw-bold">Crear Código</button>
                             </form>
@@ -282,7 +280,7 @@
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card shadow-sm border-info">
+                    <div class="card shadow-sm border-info bg-dark text-white">
                         <div class="card-header bg-info text-dark fw-bold">
                             ⚙️ Configurar Premio de Referidos
                         </div>
@@ -290,38 +288,38 @@
                             <form action="{{ url_for('actualizar_config_referido') }}" method="POST">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Nombre del Premio:</label>
-                                    <input type="text" name="nombre_premio" class="form-control" value="{{ config_referido.nombre_premio if config_referido else 'Cupón de Recompensa' }}" required>
+                                    <input type="text" name="nombre_premio" class="form-control bg-black text-white border-secondary" value="{{ config_referido.nombre_premio if config_referido else 'Cupón de Recompensa' }}" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Porcentaje de Descuento (%):</label>
-                                    <input type="number" step="0.1" name="descuento_referido" class="form-control" value="{{ config_referido.descuento_porcentaje if config_referido else 6.0 }}" required>
+                                    <input type="number" step="0.1" name="descuento_referido" class="form-control bg-black text-white border-secondary" value="{{ config_referido.descuento_porcentaje if config_referido else 6.0 }}" required>
                                 </div>
-                                <button type="submit" class="btn btn-dark w-100 fw-bold">Guardar Configuración</button>
+                                <button type="submit" class="btn btn-secondary w-100 fw-bold text-white">Guardar Configuración</button>
                             </form>
                         </div>
                     </div>
                 </div>
 
                 <div class="col-12">
-                    <div class="card shadow-sm border-secondary">
-                        <div class="card-header bg-secondary text-white fw-bold">
+                    <div class="card shadow-sm border-secondary bg-dark text-white">
+                        <div class="card-header bg-black text-white fw-bold border-bottom border-secondary">
                             📋 Códigos Activos en el Sistema
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover align-middle small">
-                                    <thead class="table-light">
+                                <table class="table table-dark table-sm table-hover align-middle small">
+                                    <thead class="table-secondary text-dark">
                                         <tr><th>Código</th><th>Descuento</th><th>Límite</th><th>Usos Actuales</th><th>Acción</th></tr>
                                     </thead>
                                     <tbody>
                                         {% for cp in codigos_promo %}
                                         <tr>
-                                            <td class="fw-bold text-primary">{{ cp.codigo }}</td>
+                                            <td class="fw-bold text-info">{{ cp.codigo }}</td>
                                             <td>{{ cp.descuento_porcentaje }}%</td>
                                             <td>{{ cp.tipo_limite }}</td>
                                             <td>{{ cp.usos_actuales }}</td>
                                             <td>
-                                                <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Eliminar código?')">Eliminar</a>
+                                                <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-outline-danger btn-sm">Eliminar</a>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -335,15 +333,15 @@
 
         {% elif seccion == 'gestion_usuarios' %}
             
-            <div class="card shadow-sm border-warning mb-4">
+            <div class="card shadow-sm border-warning bg-dark text-white mb-4">
                 <div class="card-header bg-warning text-dark fw-bold">
                     ⏳ Solicitudes de Registro Pendientes (Aprobación Requerida)
                 </div>
                 <div class="card-body">
                     {% if pendientes %}
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle small">
-                                <thead class="table-light">
+                            <table class="table table-dark table-hover align-middle small">
+                                <thead class="table-secondary text-dark">
                                     <tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Acciones</th></tr>
                                 </thead>
                                 <tbody>
@@ -367,15 +365,15 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm border-danger mb-4">
+            <div class="card shadow-sm border-danger bg-dark text-white mb-4">
                 <div class="card-header bg-danger text-white fw-bold">
                     🔑 Solicitudes de Recuperación de Contraseña
                 </div>
                 <div class="card-body">
                     {% if solicitudes_reset %}
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle small">
-                                <thead class="table-light">
+                            <table class="table table-dark table-hover align-middle small">
+                                <thead class="table-secondary text-dark">
                                     <tr><th>Usuario</th><th>Correo</th><th>Teléfono</th><th>Nueva Contraseña y Acción</th></tr>
                                 </thead>
                                 <tbody>
@@ -386,7 +384,7 @@
                                         <td>{{ u.telefono }}</td>
                                         <td>
                                             <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="input-group input-group-sm">
-                                                <input type="text" name="nueva_password" class="form-control" placeholder="Nueva clave" required>
+                                                <input type="text" name="nueva_password" class="form-control bg-black text-white border-secondary" placeholder="Nueva clave" required>
                                                 <button type="submit" class="btn btn-success fw-bold">Guardar</button>
                                                 <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-outline-secondary" title="Ignorar">✕</a>
                                             </form>
@@ -402,34 +400,54 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm border-dark">
-                <div class="card-header bg-dark text-white fw-bold">
-                    👥 Gestión de Usuarios Activos
+            <!-- GESTIÓN DE USUARIOS ACTIVOS CON ESTILO MODERN DARK Y ACTUALIZACIÓN EN TIEMPO REAL -->
+            <div class="card shadow-lg border-secondary bg-dark text-white rounded-4 overflow-hidden">
+                <div class="card-header bg-black text-white fw-bold py-3 px-4 border-bottom border-secondary d-flex align-items-center justify-content-between">
+                    <span><i class="bi bi-people-fill text-info me-2"></i> Gestión de Usuarios Activos</span>
+                    <span class="badge bg-secondary text-light px-2 py-1">{{ confirmados|length }} registrados</span>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle small">
-                            <thead class="table-light">
-                                <tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Estado / Última Conexión (Lima, Perú)</th><th>Rango</th><th>Acción</th></tr>
+                <div class="card-body p-0">
+                    <div class="table-responsive m-0">
+                        <table class="table table-dark table-hover align-middle mb-0 text-light small">
+                            <thead class="bg-black text-secondary text-uppercase fs-7 border-bottom border-secondary">
+                                <tr>
+                                    <th class="py-3 px-3">Nombre</th>
+                                    <th class="py-3 px-3">Correo</th>
+                                    <th class="py-3 px-3">Teléfono</th>
+                                    <th class="py-3 px-3 text-center">Estado (Lima, Perú)</th>
+                                    <th class="py-3 px-3 text-center">Rango</th>
+                                    <th class="py-3 px-3 text-end">Acción</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 {% for u in confirmados %}
-                                <tr>
-                                    <td class="fw-bold">{{ u.nombre }}</td>
-                                    <td>{{ u.correo }}</td>
-                                    <td>{{ u.telefono if u.telefono else 'No registrado' }}</td>
-                                    <td>
+                                <tr class="border-bottom border-secondary border-opacity-25">
+                                    <td class="fw-bold px-3 py-3 text-white">{{ u.nombre }}</td>
+                                    <td class="px-3 py-3 text-muted">{{ u.correo }}</td>
+                                    <td class="px-3 py-3 text-light">{{ u.telefono if u.telefono else 'No registrado' }}</td>
+                                    
+                                    <!-- Celda dinámica con ID único para actualizarse en tiempo real mediante JS -->
+                                    <td class="px-3 py-3 text-center" id="user-status-{{ u.id }}">
                                         {% if u.en_linea %}
-                                            <span class="badge bg-success px-2 py-1">🟢 En línea</span>
+                                            <span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1 rounded-pill">
+                                                <i class="bi bi-circle-fill fs-8 me-1 animate-pulse"></i> En línea
+                                            </span>
                                         {% else %}
-                                            <span class="text-muted small">Desconectado<br>{{ u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else 'Nunca' }}</span>
+                                            <div class="text-muted" style="font-size: 11px;">
+                                                <span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-2 py-1 rounded-pill mb-1">Desconectado</span>
+                                                <br>{{ u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else 'Nunca' }}
+                                            </div>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        <span class="badge {% if u.rango == 'Plata' %}bg-primary{% else %}bg-secondary{% endif %}">{{ u.rango }}</span>
+
+                                    <td class="px-3 py-3 text-center">
+                                        <span class="badge {% if u.rango == 'Plata' %}bg-info text-dark{% else %}bg-secondary text-light{% endif %} px-2 py-1">{{ u.rango }}</span>
                                     </td>
-                                    <td>
-                                        <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-danger btn-sm fw-bold" onclick="return confirm('¿Estás seguro de eliminar este usuario?')">Eliminar</a>
+                                    
+                                    <td class="px-3 py-3 text-end">
+                                        <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-outline-danger btn-sm px-2 py-1 fw-bold" onclick="return confirm('¿Estás seguro de eliminar este usuario?')">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -444,32 +462,58 @@
     </div>
 </div>
 
-<!-- Script en tiempo real corregido para evitar falsos positivos y bucles -->
+<!-- Script global en tiempo real: Audio, Alertas de Pedidos y Estado de Usuarios Online Automático -->
 <script>
 let ultimoPedidoId = 0;
 let ultimoUsuarioId = 0;
+let pendientesAnteriores = -1;
 
-// Obtiene los ID iniciales actuales al cargar la página
+// Inicializa valores de control en segundo plano al cargar
 fetch('/api/verificar-alertas')
     .then(res => res.json())
     .then(data => {
         if (!data.error) {
             ultimoPedidoId = data.ultimo_pedido_id || 0;
             ultimoUsuarioId = data.ultimo_usuario_id || 0;
+            pendientesAnteriores = (data.pedidos_validacion || 0) + (data.usuarios_pendientes || 0) + (data.mensajes_soporte || 0);
         }
     }).catch(err => {});
 
-// Monitorea nuevos registros cada 5 segundos de forma silenciosa
+// Bucle de sincronización cada 5 segundos (Actualiza estado online y verifica pedidos nuevos)
 setInterval(() => {
+    // 1. Sincroniza el estado en línea de los usuarios en la tabla sin recargar toda la página
+    fetch('/api/estado-usuarios')
+        .then(res => res.json())
+        .then(estados => {
+            for (let userId in estados) {
+                let info = estados[userId];
+                let celda = document.getElementById(`user-status-${userId}`);
+                if (celda) {
+                    if (info.en_linea) {
+                        celda.innerHTML = `<span class="badge bg-success bg-opacity-25 text-success border border-success px-2 py-1 rounded-pill">🟢 En línea</span>`;
+                    } else {
+                        celda.innerHTML = `<div class="text-muted" style="font-size: 11px;"><span class="badge bg-secondary bg-opacity-25 text-secondary border border-secondary px-2 py-1 rounded-pill mb-1">Desconectado</span><br>${info.ultima_actividad}</div>`;
+                    }
+                }
+            }
+        }).catch(err => {});
+
+    // 2. Comprueba si hay nuevos pedidos o registros para activar el sonido de alerta y refrescar
     fetch('/api/verificar-alertas')
         .then(res => res.json())
         .then(data => {
             if (!data.error) {
-                if (data.ultimo_pedido_id > ultimoPedidoId || data.ultimo_usuario_id > ultimoUsuarioId) {
+                let pendientesActuales = (data.pedidos_validacion || 0) + (data.usuarios_pendientes || 0) + (data.mensajes_soporte || 0);
+                
+                if (data.ultimo_pedido_id > ultimoPedidoId || 
+                    data.ultimo_usuario_id > ultimoUsuarioId || 
+                    (pendientesAnteriores !== -1 && pendientesActuales > pendientesAnteriores)) {
+                    
                     let audio = document.getElementById('audioNotificacion');
                     if (audio) {
                         audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador:", e));
                     }
+                    
                     setTimeout(() => {
                         location.reload();
                     }, 1000);
