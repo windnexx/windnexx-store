@@ -161,6 +161,12 @@ with app.app_context():
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS usos_actuales INTEGER DEFAULT 0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS es_premio_referido BOOLEAN DEFAULT FALSE;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS propietario_id INTEGER;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS precio_fragmentos FLOAT DEFAULT 0.082;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS precio_cajas FLOAT DEFAULT 0.45;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS precio_pases FLOAT DEFAULT 3.00;'))
+            connection.execute(text('ALTER TABLE configuracion_productos ADD COLUMN IF NOT EXISTS diamantes_habilitado BOOLEAN DEFAULT TRUE;'))
+            connection.execute(text('ALTER TABLE paquete_diamante ADD COLUMN IF NOT EXISTS cantidad INTEGER;'))
+            connection.execute(text('ALTER TABLE paquete_diamante ADD COLUMN IF NOT EXISTS precio FLOAT DEFAULT 0.0;'))
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
@@ -259,11 +265,9 @@ def obtener_paquete_diamante_mas_cercano(cantidad_ingresada):
     paquetes = PaqueteDiamante.query.order_by(PaqueteDiamante.cantidad.asc()).all()
     if not paquetes:
         return None
-    # Busca coincidencia exacta primero
     for p in paquetes:
         if p.cantidad == cantidad_ingresada:
             return p
-    # Selecciona el paquete permitido más cercano (en caso de empate exacto, toma el mayor)
     mejor_paquete = min(
         paquetes,
         key=lambda p: (abs(p.cantidad - cantidad_ingresada), -p.cantidad)
@@ -1266,7 +1270,6 @@ def agregar_carrito():
     for item in carrito:
         if item['producto'] == producto:
             if producto == 'Diamantes':
-                # Para Diamantes, si suma al carrito, ajustamos también al paquete más cercano
                 paq_suma = obtener_paquete_diamante_mas_cercano(item['cantidad'] + cantidad)
                 item['cantidad'] = paq_suma.cantidad if paq_suma else cantidad
             else:
