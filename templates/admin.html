@@ -381,7 +381,7 @@
                                             {% for reg in registros_referidos %}
                                                 {% set pat = Usuario.query.get(reg.patrocinador_id) %}
                                                 {% set inv = Usuario.query.get(reg.referido_id) %}
-                                                <tr>
+                                                <tr class="{% if loop.index > 3 %}fila-referido-extra{% endif %}" {% if loop.index > 3 %}style="display: none;"{% endif %}>
                                                     <td class="fw-bold text-info">
                                                         {{ pat.nombre if pat else 'Usuario eliminado' }}
                                                         {% if pat %}<br><small class="text-muted">{{ pat.codigo_referido }}</small>{% endif %}
@@ -410,6 +410,13 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                {% if registros_referidos|length > 3 %}
+                                    <div class="text-center mt-3">
+                                        <button type="button" id="btn-ver-mas-referidos" class="btn btn-sm btn-outline-warning fw-bold" onclick="toggleReferidos()">
+                                            Ver más ({{ registros_referidos|length - 3 }} más)
+                                        </button>
+                                    </div>
+                                {% endif %}
                             {% else %}
                                 <p class="text-muted text-center py-3 my-0 small">Aún no hay registros de amigos invitados en el sistema.</p>
                             {% endif %}
@@ -589,6 +596,24 @@
 
 <!-- Script en tiempo real con notificaciones flotantes visibles, sonido y reordenamiento automático -->
 <script>
+function toggleReferidos() {
+    const filasExtra = document.querySelectorAll('.fila-referido-extra');
+    const btn = document.getElementById('btn-ver-mas-referidos');
+    if (!filasExtra.length || !btn) return;
+
+    const estanOcultas = filasExtra[0].style.display === 'none';
+
+    filasExtra.forEach(fila => {
+        fila.style.display = estanOcultas ? '' : 'none';
+    });
+
+    if (estanOcultas) {
+        btn.textContent = 'Ver menos';
+    } else {
+        btn.textContent = `Ver más (${filasExtra.length} más)`;
+    }
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     const correoAdmin = "{{ admin_correo|default('') }}".toLowerCase();
     let saludo = "";

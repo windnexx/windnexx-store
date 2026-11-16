@@ -276,13 +276,14 @@ def otorgar_bono_referido_si_aplica(cliente_id):
     if not cliente or not cliente.referido_por_id:
         return
 
-    tiene_compra_pagada = Pedido.query.filter(
+    # Cualquier producto de la tienda (Pases, Cajas o Fragmentos) completa la misión
+    tiene_compra_tienda = Pedido.query.filter(
         Pedido.usuario_id == cliente.id,
         Pedido.estado == 'Completado',
-        Pedido.total > 0
+        Pedido.telefono_digitos != 'REF'
     ).first()
 
-    if not tiene_compra_pagada:
+    if not tiene_compra_tienda:
         return
 
     reg_ref = RegistroReferido.query.filter_by(
@@ -953,7 +954,7 @@ def cliente_home():
     
     ya_compro = Pedido.query.filter(
         Pedido.usuario_id == usuario_actual.id,
-        Pedido.total > 0
+        Pedido.telefono_digitos != 'REF'
     ).first() is not None
     
     if codigo_pat:

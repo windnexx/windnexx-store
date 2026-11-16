@@ -113,7 +113,7 @@
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h6 class="fw-bold">¿Cómo funciona?</h6>
-                        <p class="small mb-0">Comparte tu código personal con tus amigos. Por cada amigo que se registre usando tu código y complete <strong>cualquier compra por primera vez</strong>, ganarás <strong>{{ premio_por_referido }} fragmentos gratis</strong> acumulables en tu saldo.</p>
+                        <p class="small mb-0">Comparte tu código personal con tus amigos. Por cada amigo que se registre usando tu código y complete <strong>cualquier compra por primera vez en la tienda (Pases, Cajas o Fragmentos)</strong>, ganarás <strong>{{ premio_por_referido }} fragmentos gratis</strong> acumulables en tu saldo.</p>
                     </div>
 
                     <div class="row g-3 mb-4">
@@ -541,21 +541,22 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    const saldoReferidos = {{ usuario.saldo_fragmentos or 0 }};
+    const saldoReferidos = {{ usuario.saldo_fragmentos if usuario.saldo_fragmentos else 0 }};
     const urlReferidos = "{{ url_for('cliente_home', seccion='amigo_referidos') }}";
+    const logoSaldoUrl = "{{ url_for('static', filename='logosaldo.png') }}";
     const elementosNav = document.querySelectorAll('nav a, nav button, nav span, .navbar a, .navbar button, .navbar span');
 
     for (let el of elementosNav) {
-        if (el.children.length === 0 && el.textContent && el.textContent.includes('Perfil:')) {
-            const target = el.closest('a, button, div, span') || el;
+        if (el.textContent && (el.textContent.includes('Perfil:') || el.textContent.includes('Cerrar Sesión'))) {
+            const target = el.closest('a, button') || el;
             if (target && target.parentElement && !document.getElementById('cuadro-saldo-favor-nav')) {
                 const badgeSaldo = document.createElement('a');
                 badgeSaldo.id = 'cuadro-saldo-favor-nav';
                 badgeSaldo.href = urlReferidos;
-                badgeSaldo.title = 'Saldo a favor por misiones de referidos (Clic para cobrar)';
-                badgeSaldo.className = 'btn btn-sm fw-bold me-2 d-inline-flex align-items-center gap-1';
-                badgeSaldo.style.cssText = 'background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: 999px; padding: 5px 14px; font-size: 13px; text-decoration: none;';
-                badgeSaldo.innerHTML = `💎 Saldo: <span style="color:#fff;">${saldoReferidos} Frag.</span>`;
+                badgeSaldo.title = 'Saldo de referidos';
+                badgeSaldo.className = 'btn btn-sm fw-bold me-2 d-inline-flex align-items-center gap-2';
+                badgeSaldo.style.cssText = 'background: rgba(15, 23, 42, 0.85); border: 1px solid #38bdf8; color: #ffffff; border-radius: 999px; padding: 4px 12px; font-size: 14px; text-decoration: none;';
+                badgeSaldo.innerHTML = `<img src="${logoSaldoUrl}" alt="Saldo" style="width: 22px; height: 22px; object-fit: contain; border-radius: 50%;"><span>${saldoReferidos}</span>`;
                 target.parentElement.insertBefore(badgeSaldo, target);
             }
             break;
