@@ -123,6 +123,20 @@ class AnuncioPublicidad(db.Model):
     activo = db.Column(db.Boolean, default=False)
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
 
+# Modelo para Configuración de Precios de Productos
+class PrecioProducto(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    producto = db.Column(db.String(50), unique=True, nullable=False)
+    precio_actual = db.Column(db.Float, nullable=False, default=0.0)
+    precio_antes = db.Column(db.Float, nullable=False, default=0.0)
+
+# Modelo para Cantidades Exactas de Diamantes
+class PaqueteDiamante(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    cantidad = db.Column(db.Integer, unique=True, nullable=False)
+    precio_actual = db.Column(db.Float, nullable=False)
+    precio_antes = db.Column(db.Float, nullable=False, default=0.0)
+
 with app.app_context():
     db.create_all()
     
@@ -150,6 +164,17 @@ with app.app_context():
             connection.commit()
     except Exception as e:
         print("Aviso al verificar columnas en la BD:", e)
+
+    # Inicializar precios por defecto si aún no existen en la BD
+    precios_iniciales = [
+        ('Fragmentos', 0.082, 0.096),
+        ('Cajas', 0.45, 0.53),
+        ('Pases', 3.00, 3.51)
+    ]
+    for prod_nombre, p_act, p_ant in precios_iniciales:
+        if not PrecioProducto.query.filter_by(producto=prod_nombre).first():
+            db.session.add(PrecioProducto(producto=prod_nombre, precio_actual=p_act, precio_antes=p_ant))
+    db.session.commit()
     
     if not ConfiguracionReferido.query.first():
         conf_inicial = ConfiguracionReferido(
@@ -247,6 +272,33 @@ PRECIOS = {
     'Pases': 3.00
 }
 
+def obtener_diccionario_precios():
+    registros = PrecioProducto.query.all()
+    mapa = {}
+    for r in registros:
+        mapa[r.producto] = {
+            'actual': float(r.precio_actual),
+            'antes': float(r.precio_antes)
+        }
+    for prod, val in PRECIOS.items():
+        if prod not in mapa:
+            mapa[prod] = {'actual': val, 'antes': round(val * 1.17, 4)}
+    return mapa
+
+def calcular_precios_item(producto, cantidad, mapa_precios):
+    if producto == 'Diamantes':
+        paquete = PaqueteDiamante.query.filter_by(cantidad=cantidad).first()
+        if paquete:
+            p_act = float(paquete.precio_actual)
+            p_ant = float(paquete.precio_antes) if paquete.precio_antes and paquete.precio_antes > 0 else p_act
+            return round(p_act, 2), round(p_ant, 2)
+        return 0.0, 0.0
+    else:
+        info = mapa_precios.get(producto, {'actual': PRECIOS.get(producto, 0.0), 'antes': 0.0})
+        sub_actual = cantidad * info['actual']
+        sub_antes = cantidad * (info['antes'] if info['antes'] > 0 else info['actual'])
+        return round(sub_actual, 2), round(sub_antes, 2)
+
 def calcular_estadisticas_usuario(usuario_id):
     pedidos_completados = Pedido.query.filter_by(usuario_id=usuario_id, estado='Completado').all()
     total_pases = 0
@@ -272,7 +324,11 @@ def calcular_estadisticas_usuario(usuario_id):
 
         monto_total_comprado += (p.total + (p.descuento_aplicado or 0.0))
 
-    fragmentos_equivalentes = int(round(monto_total_comprado / PRECIOS['Fragmentos']))
+    mapa_p = obtener_diccionario_precios()
+    precio_frag = mapa_p.get('Fragmentos', {}).get('actual', PRECIOS['Fragmentos'])
+    if precio_frag <= 0:
+        precio_frag = PRECIOS['Fragmentos']
+    fragmentos_equivalentes = int(round(monto_total_comprado / precio_frag))
     return total_pases, total_fragmentos, total_cajas, fragmentos_equivalentes
 
 def otorgar_bono_referido_si_aplica(cliente_id):
@@ -538,6 +594,9 @@ def admin_panel():
     mensajes_soporte = MensajeSoporte.query.order_by(MensajeSoporte.id.desc()).all()
     publicidad = AnuncioPublicidad.query.first()
     
+    precios_productos = obtener_diccionario_precios()
+    paquetes_diamantes = PaqueteDiamante.query.order_by(PaqueteDiamante.cantidad.asc()).all()
+    
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
     
@@ -564,6 +623,8 @@ def admin_panel():
         config_referido=config_referido,
         mensajes_soporte=mensajes_soporte,
         publicidad=publicidad,
+        precios_productos=precios_productos,
+        paquetes_diamantes=paquetes_diamantes,
         admin_correo=session.get('correo', ''),
         pedidos_validacion=pedidos_validacion,
         pedidos_recargando=pedidos_recargando,
@@ -573,6 +634,75 @@ def admin_panel():
         seccion=seccion_admin,
         Usuario=Usuario
     )
+
+@app.route('/admin/guardar_precios', methods=['POST'])
+def guardar_precios():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+
+    productos = ['Fragmentos', 'Cajas', 'Pases']
+    for prod in productos:
+        try:
+            p_actual = float(request.form.get(f'actual_{prod}', 0))
+            p_antes = float(request.form.get(f'antes_{prod}', 0))
+        except ValueError:
+            continue
+
+        registro = PrecioProducto.query.filter_by(producto=prod).first()
+        if not registro:
+            registro = PrecioProducto(producto=prod)
+            db.session.add(registro)
+        registro.precio_actual = p_actual
+        registro.precio_antes = p_antes
+
+    db.session.commit()
+    flash('¡Precios de productos actualizados correctamente!', 'success')
+    return redirect(url_for('admin_panel', seccion='precios'))
+
+@app.route('/admin/agregar_paquete_diamante', methods=['POST'])
+def agregar_paquete_diamante():
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+
+    try:
+        cantidad = int(request.form.get('cantidad_diamantes', 0))
+        precio_actual = float(request.form.get('precio_actual_diamante', 0))
+        precio_antes = float(request.form.get('precio_antes_diamante', 0))
+    except ValueError:
+        flash('Ingresa valores numéricos válidos para los diamantes.', 'danger')
+        return redirect(url_for('admin_panel', seccion='precios'))
+
+    if cantidad <= 0 or precio_actual <= 0:
+        flash('La cantidad y el precio actual deben ser mayores a 0.', 'danger')
+        return redirect(url_for('admin_panel', seccion='precios'))
+
+    existente = PaqueteDiamante.query.filter_by(cantidad=cantidad).first()
+    if existente:
+        existente.precio_actual = precio_actual
+        existente.precio_antes = precio_antes
+        flash(f'Paquete de {cantidad} Diamantes actualizado.', 'success')
+    else:
+        nuevo_paq = PaqueteDiamante(
+            cantidad=cantidad,
+            precio_actual=precio_actual,
+            precio_antes=precio_antes
+        )
+        db.session.add(nuevo_paq)
+        flash(f'Paquete de {cantidad} Diamantes agregado correctamente.', 'success')
+
+    db.session.commit()
+    return redirect(url_for('admin_panel', seccion='precios'))
+
+@app.route('/admin/eliminar_paquete_diamante/<int:id>')
+def eliminar_paquete_diamante(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+
+    paquete = PaqueteDiamante.query.get_or_404(id)
+    db.session.delete(paquete)
+    db.session.commit()
+    flash('Cantidad de diamantes eliminada.', 'info')
+    return redirect(url_for('admin_panel', seccion='precios'))
 
 @app.route('/admin/guardar_publicidad', methods=['POST'])
 def guardar_publicidad():
@@ -1012,20 +1142,24 @@ def cliente_home():
 
     historial_compras = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).all()
     publicidad = AnuncioPublicidad.query.filter_by(activo=True).first()
+
+    precios_productos = obtener_diccionario_precios()
+    paquetes_diamantes = PaqueteDiamante.query.order_by(PaqueteDiamante.cantidad.asc()).all()
         
-    total_general = 0
+    total_general = 0.0
+    total_antes_general = 0.0
     carrito_calculado = []
     for item in session['carrito']:
         prod = item['producto']
         cant = item['cantidad']
-        precio_unitario = PRECIOS.get(prod, 0)
-        subtotal = cant * precio_unitario
+        subtotal, subtotal_antes = calcular_precios_item(prod, cant, precios_productos)
         total_general += subtotal
+        total_antes_general += subtotal_antes
         carrito_calculado.append({
             'producto': prod,
             'cantidad': cant,
-            'precio_unitario': precio_unitario,
-            'subtotal': round(subtotal, 2)
+            'subtotal': round(subtotal, 2),
+            'subtotal_antes': round(subtotal_antes, 2)
         })
         
     descuento_monto = 0.0
@@ -1033,6 +1167,7 @@ def cliente_home():
         descuento_monto = total_general * (session['descuento_porcentaje'] / 100.0)
         
     total_final = max(0.0, total_general - descuento_monto)
+    ahorro_antes = max(0.0, total_antes_general - total_general)
         
     return render_template(
         'cliente_home.html', 
@@ -1049,10 +1184,14 @@ def cliente_home():
         premio_por_referido=premio_por_referido,
         historial_canjes_ref=historial_canjes_ref,
         publicidad=publicidad,
+        precios_productos=precios_productos,
+        paquetes_diamantes=paquetes_diamantes,
         Usuario=Usuario,
         CodigoPromo=CodigoPromo,
         carrito=carrito_calculado, 
         total_general=round(total_general, 2),
+        total_antes_general=round(total_antes_general, 2),
+        ahorro_antes=round(ahorro_antes, 2),
         descuento_monto=round(descuento_monto, 2),
         total_final=round(total_final, 2),
         codigo_aplicado=session.get('codigo_aplicado'),
@@ -1068,6 +1207,24 @@ def agregar_carrito():
         return redirect(url_for('login'))
         
     producto = request.form.get('producto')
+    
+    if producto == 'Diamantes':
+        try:
+            cantidad = int(request.form.get('cantidad', 0))
+        except ValueError:
+            cantidad = 0
+        paquete = PaqueteDiamante.query.filter_by(cantidad=cantidad).first()
+        if not paquete:
+            flash('Selecciona una cantidad válida de Diamantes disponible en la tienda.', 'warning')
+            return redirect(url_for('cliente_home', seccion='catalogo'))
+        
+        if 'carrito' not in session:
+            session['carrito'] = []
+        session['carrito'].append({'producto': 'Diamantes', 'cantidad': cantidad})
+        session.modified = True
+        flash(f'Se agregaron {cantidad} de Diamantes al carrito.', 'success')
+        return redirect(url_for('cliente_home', seccion='catalogo'))
+
     minimos = {
         'Fragmentos': 25,
         'Cajas': 5,
@@ -1190,11 +1347,12 @@ def pagar_yape():
         return redirect(url_for('cliente_home', seccion='pago_yape'))
         
     jugador_id = session['jugador_id_temp']
+    precios_productos = obtener_diccionario_precios()
     
-    total_general = 0
+    total_general = 0.0
     detalle_items = []
     for item in session['carrito']:
-        sub = item['cantidad'] * PRECIOS.get(item['producto'], 0)
+        sub, _ = calcular_precios_item(item['producto'], item['cantidad'], precios_productos)
         total_general += sub
         detalle_items.append(f"{item['producto']} (x{item['cantidad']})")
         

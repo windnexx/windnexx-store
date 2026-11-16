@@ -359,7 +359,11 @@
                                         <button class="btn btn-outline-dark fw-bold" type="submit">Aplicar</button>
                                     </div>
                                     {% if codigo_aplicado %}
-                                        <div class="text-success small mt-1 fw-bold">✓ Código "{{ codigo_aplicado }}" activo (-S/ {{ descuento_monto }})</div>
+                                        {% if tipo_premio == 'descuento' %}
+                                            <div class="text-success small mt-1 fw-bold">✓ Código "{{ codigo_aplicado }}" activo (-S/ {{ descuento_monto }})</div>
+                                        {% else %}
+                                            <div class="text-success small mt-1 fw-bold">✓ Código "{{ codigo_aplicado }}" activo (+{{ cantidad_premio|int if cantidad_premio == cantidad_premio|int else cantidad_premio }} {{ tipo_premio }} Gratis) 🎁</div>
+                                        {% endif %}
                                     {% endif %}
                                 </form>
 
@@ -381,6 +385,13 @@
                                     <div class="d-flex justify-content-between text-success">
                                         <span>Descuento (Cupón):</span>
                                         <span>-S/ {{ descuento_monto }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if codigo_aplicado and tipo_premio != 'descuento' and cantidad_premio > 0 %}
+                                    <div class="d-flex justify-content-between text-success fw-bold">
+                                        <span>Premio (Cupón):</span>
+                                        <span>+{{ cantidad_premio|int if cantidad_premio == cantidad_premio|int else cantidad_premio }} {{ tipo_premio }}</span>
                                     </div>
                                     {% endif %}
 
@@ -432,6 +443,9 @@
                                     {% for item in carrito %}
                                         <li>{{ item.producto }} (x{{ item.cantidad }}) - <span class="text-success fw-bold">S/ {{ item.subtotal }}</span></li>
                                     {% endfor %}
+                                    {% if codigo_aplicado and tipo_premio != 'descuento' and cantidad_premio > 0 %}
+                                        <li class="text-success fw-bold">Premio Cupón ({{ codigo_aplicado }}): +{{ cantidad_premio|int if cantidad_premio == cantidad_premio|int else cantidad_premio }} {{ tipo_premio }}</li>
+                                    {% endif %}
                                 </ul>
 
                                 <div class="d-flex justify-content-between align-items-center border-top pt-2 mb-2">
