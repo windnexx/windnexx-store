@@ -60,6 +60,8 @@ class CodigoPromo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(50), unique=True, nullable=False)
     descuento_porcentaje = db.Column(db.Float, nullable=False)
+    tipo_premio = db.Column(db.String(30), default='descuento')
+    cantidad_premio = db.Column(db.Float, default=0.0)
     tipo_limite = db.Column(db.String(20), default='ilimitado')
     max_usos_primeras = db.Column(db.Integer, default=0) 
     usos_actuales = db.Column(db.Integer, default=0)
@@ -138,6 +140,8 @@ with app.app_context():
             connection.execute(text('ALTER TABLE configuracion_referido ADD COLUMN IF NOT EXISTS fragmentos_por_referido INTEGER DEFAULT 20;'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_premio VARCHAR(30) DEFAULT \'descuento\';'))
+            connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS cantidad_premio FLOAT DEFAULT 0.0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_limite VARCHAR(20) DEFAULT \'ilimitado\';'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS max_usos_primeras INTEGER DEFAULT 0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS usos_actuales INTEGER DEFAULT 0;'))
@@ -276,7 +280,6 @@ def otorgar_bono_referido_si_aplica(cliente_id):
     if not cliente or not cliente.referido_por_id:
         return
 
-    # Cualquier producto de la tienda (Pases, Cajas o Fragmentos) completa la misión
     tiene_compra_tienda = Pedido.query.filter(
         Pedido.usuario_id == cliente.id,
         Pedido.estado == 'Completado',
@@ -694,10 +697,12 @@ def crear_codigo():
         return redirect(url_for('login'))
     
     codigo = request.form.get('codigo', '').strip().upper()
+    tipo_premio = request.form.get('tipo_premio', 'descuento').strip()
     try:
-        descuento = float(request.form.get('descuento', 0))
+        valor_raw = request.form.get('cantidad_premio') or request.form.get('descuento') or 0
+        cantidad_premio = float(valor_raw)
     except ValueError:
-        descuento = 0
+        cantidad_premio = 0
         
     tipo_limite = request.form.get('tipo_limite', 'ilimitado')
     try:
@@ -705,11 +710,14 @@ def crear_codigo():
     except ValueError:
         max_usos_primeras = 0
     
-    if codigo and descuento > 0:
+    if codigo and cantidad_premio > 0:
         if not CodigoPromo.query.filter_by(codigo=codigo).first():
+            descuento_val = cantidad_premio if tipo_premio == 'descuento' else 0.0
             nuevo_cp = CodigoPromo(
                 codigo=codigo, 
-                descuento_porcentaje=descuento,
+                descuento_porcentaje=descuento_val,
+                tipo_premio=tipo_premio,
+                cantidad_premio=cantidad_premio,
                 tipo_limite=tipo_limite,
                 max_usos_primeras=max_usos_primeras,
                 usos_actuales=0,
@@ -946,6 +954,8 @@ def cliente_home():
     if 'codigo_aplicado' not in session:
         session['codigo_aplicado'] = None
         session['descuento_porcentaje'] = 0.0
+        session['tipo_premio'] = 'descuento'
+        session['cantidad_premio'] = 0.0
         
     seccion = request.args.get('seccion', 'catalogo')
     
@@ -1046,6 +1056,8 @@ def cliente_home():
         descuento_monto=round(descuento_monto, 2),
         total_final=round(total_final, 2),
         codigo_aplicado=session.get('codigo_aplicado'),
+        tipo_premio=session.get('tipo_premio', 'descuento'),
+        cantidad_premio=session.get('cantidad_premio', 0),
         seccion=seccion,
         historial=historial_compras
     )
@@ -1107,8 +1119,13 @@ def aplicar_codigo():
     if cp.es_premio_referido and cp.propietario_id != usuario_id:
         flash('Cupón inválido: este código de recompensa no te pertenece o aún no has completado la misión.', 'danger')
         return redirect(url_for('cliente_home', seccion='catalogo'))
+
+    if cp.tipo_limite == 'solo_una_vez':
+        if cp.usos_actuales >= 1:
+            flash('Este cupón era de un solo uso y ya fue canjeado.', 'danger')
+            return redirect(url_for('cliente_home', seccion='catalogo'))
     
-    if cp.tipo_limite == 'una_por_cuenta':
+    elif cp.tipo_limite == 'una_por_cuenta':
         ya_usado = UsoCodigoUsuario.query.filter_by(usuario_id=usuario_id, codigo_id=cp.id).first()
         if ya_usado:
             flash('Este código ya fue utilizado en tu cuenta. Solo se permite una vez por usuario.', 'danger')
@@ -1119,9 +1136,20 @@ def aplicar_codigo():
             flash(f'Este código ya alcanzó su límite máximo de uso ({cp.max_usos_primeras} cuentas).', 'danger')
             return redirect(url_for('cliente_home', seccion='catalogo'))
 
+    tipo_p = getattr(cp, 'tipo_premio', None) or 'descuento'
+    cant_p = cp.cantidad_premio if (getattr(cp, 'cantidad_premio', 0) and cp.cantidad_premio > 0) else cp.descuento_porcentaje
+
     session['codigo_aplicado'] = cp.codigo
-    session['descuento_porcentaje'] = cp.descuento_porcentaje
-    flash(f'¡Código promocional {cp.codigo} aplicado ({cp.descuento_porcentaje}% de descuento)!', 'success')
+    session['tipo_premio'] = tipo_p
+    session['cantidad_premio'] = cant_p
+
+    if tipo_p == 'descuento':
+        session['descuento_porcentaje'] = cant_p
+        flash(f'¡Código promocional {cp.codigo} aplicado ({cant_p}% de descuento)!', 'success')
+    else:
+        session['descuento_porcentaje'] = 0.0
+        cant_fmt = int(cant_p) if float(cant_p).is_integer() else cant_p
+        flash(f'¡Código promocional {cp.codigo} aplicado (+{cant_fmt} {tipo_p} de regalo en tu pedido)!', 'success')
         
     session.modified = True
     return redirect(url_for('cliente_home', seccion='catalogo'))
@@ -1181,6 +1209,21 @@ def pagar_yape():
     if codigo_usado_str:
         cp_obj = CodigoPromo.query.filter_by(codigo=codigo_usado_str).first()
         if cp_obj:
+            if cp_obj.tipo_limite == 'solo_una_vez' and cp_obj.usos_actuales >= 1:
+                session.pop('codigo_aplicado', None)
+                session.pop('descuento_porcentaje', None)
+                session.pop('tipo_premio', None)
+                session.pop('cantidad_premio', None)
+                session.modified = True
+                flash('El cupón aplicado ya fue usado por otra cuenta. Intenta finalizar tu compra nuevamente.', 'warning')
+                return redirect(url_for('cliente_home', seccion='catalogo'))
+
+            tipo_p = getattr(cp_obj, 'tipo_premio', None) or 'descuento'
+            cant_p = cp_obj.cantidad_premio if (getattr(cp_obj, 'cantidad_premio', 0) and cp_obj.cantidad_premio > 0) else cp_obj.descuento_porcentaje
+            if tipo_p != 'descuento' and cant_p > 0:
+                cant_fmt = int(cant_p) if float(cant_p).is_integer() else cant_p
+                detalle_texto += f" + Premio Cupón ({codigo_usado_str}): {cant_fmt} {tipo_p}"
+
             cp_obj.usos_actuales += 1
             if cp_obj.tipo_limite == 'una_por_cuenta':
                 nuevo_uso = UsoCodigoUsuario(usuario_id=session['usuario_id'], codigo_id=cp_obj.id)
@@ -1209,6 +1252,8 @@ def pagar_yape():
     session.pop('jugador_id_temp', None)
     session.pop('codigo_aplicado', None)
     session.pop('descuento_porcentaje', None)
+    session.pop('tipo_premio', None)
+    session.pop('cantidad_premio', None)
     session.modified = True
     
     flash('¡Pago registrado! Su pedido se encuentra en "Validación de pago".', 'success')
@@ -1220,6 +1265,8 @@ def vaciar_carrito():
     session.pop('jugador_id_temp', None)
     session.pop('codigo_aplicado', None)
     session.pop('descuento_porcentaje', None)
+    session.pop('tipo_premio', None)
+    session.pop('cantidad_premio', None)
     session.modified = True
     flash('El carrito ha sido vaciado.', 'info')
     return redirect(url_for('cliente_home', seccion='catalogo'))

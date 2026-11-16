@@ -315,13 +315,23 @@
                                     <input type="text" name="codigo" class="form-control bg-black text-white border-secondary text-uppercase" placeholder="EJ. WINGS20" required>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label fw-bold small">Descuento (%):</label>
-                                    <input type="number" step="0.1" name="descuento" class="form-control bg-black text-white border-secondary" placeholder="Ej. 10" required>
+                                    <label class="form-label fw-bold small">Premio:</label>
+                                    <select name="tipo_premio" class="form-select bg-black text-white border-secondary">
+                                        <option value="descuento">Descuento (%)</option>
+                                        <option value="Fragmentos">Fragmentos</option>
+                                        <option value="Cajas">Cajas</option>
+                                        <option value="Pases">Pases</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Cantidad:</label>
+                                    <input type="number" step="0.1" min="0.1" name="cantidad_premio" class="form-control bg-black text-white border-secondary" placeholder="Ej. 10 (porcentaje o cantidad)" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold small">Tipo de Límite de Uso:</label>
                                     <select name="tipo_limite" class="form-select bg-black text-white border-secondary">
                                         <option value="ilimitado">Ilimitado</option>
+                                        <option value="solo_una_vez">Solo una vez (1 único usuario)</option>
                                         <option value="una_por_cuenta">Una sola vez por cuenta</option>
                                         <option value="primeras_cuentas">Limitado a las primeras N cuentas</option>
                                     </select>
@@ -433,14 +443,39 @@
                             <div class="table-responsive">
                                 <table class="table table-dark table-sm table-hover align-middle small">
                                     <thead class="table-secondary text-dark">
-                                        <tr><th>Código</th><th>Descuento</th><th>Límite</th><th>Usos Actuales</th><th>Acción</th></tr>
+                                        <tr><th>Código</th><th>Premio</th><th>Cantidad</th><th>Límite</th><th>Usos Actuales</th><th>Acción</th></tr>
                                     </thead>
                                     <tbody>
                                         {% for cp in codigos_promo %}
+                                        {% set tipo_p = cp.tipo_premio or 'descuento' %}
+                                        {% set cant_p = cp.cantidad_premio if (cp.cantidad_premio and cp.cantidad_premio > 0) else cp.descuento_porcentaje %}
                                         <tr>
                                             <td class="fw-bold text-info">{{ cp.codigo }}</td>
-                                            <td>{{ cp.descuento_porcentaje }}%</td>
-                                            <td>{{ cp.tipo_limite }}</td>
+                                            <td>
+                                                {% if tipo_p == 'descuento' %}
+                                                    Descuento (%)
+                                                {% else %}
+                                                    {{ tipo_p }}
+                                                {% endif %}
+                                            </td>
+                                            <td class="fw-bold text-success">
+                                                {% if tipo_p == 'descuento' %}
+                                                    {{ cant_p }}%
+                                                {% else %}
+                                                    {{ cant_p|int if cant_p == cant_p|int else cant_p }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if cp.tipo_limite == 'solo_una_vez' %}
+                                                    Solo una vez
+                                                {% elif cp.tipo_limite == 'una_por_cuenta' %}
+                                                    Una por cuenta
+                                                {% elif cp.tipo_limite == 'primeras_cuentas' %}
+                                                    Primeras {{ cp.max_usos_primeras }} cuentas
+                                                {% else %}
+                                                    Ilimitado
+                                                {% endif %}
+                                            </td>
                                             <td>{{ cp.usos_actuales }}</td>
                                             <td>
                                                 <a href="{{ url_for('eliminar_codigo', id=cp.id) }}" class="btn btn-outline-danger btn-sm">Eliminar</a>
