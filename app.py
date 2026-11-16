@@ -195,7 +195,13 @@ def api_estado_usuarios():
     resultado = {}
     for u in usuarios:
         en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
-        resultado[u.id] = en_linea
+        ultima_formateada = u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else 'Nunca'
+        timestamp_val = u.ultima_actividad.timestamp() if u.ultima_actividad else 0
+        resultado[u.id] = {
+            "en_linea": en_linea,
+            "ultima_actividad": ultima_formateada,
+            "timestamp": timestamp_val
+        }
         
     return jsonify(resultado)
 
