@@ -71,11 +71,12 @@
     <div class="container px-3">
         <div class="card p-4 mx-auto shadow-lg">
             
-            <div class="text-center mb-4">
-                <h5 class="fw-bold text-uppercase tracking-wider mb-2 text-white d-flex align-items-center justify-content-center gap-2">
+            <!-- Títulos alineados a la izquierda -->
+            <div class="text-start mb-4">
+                <h5 class="fw-bold text-uppercase tracking-wider mb-2 text-white d-flex align-items-center gap-2">
                     <i class="bi bi-cpu-fill text-info"></i> WINDNEXX <span class="text-primary">STORE</span>
                 </h5>
-                <h3 class="fw-bold text-success">Crear Cuenta</h3>
+                <h3 class="fw-bold text-success mb-0">Crear Cuenta</h3>
             </div>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -90,34 +91,35 @@
             {% endwith %}
 
             <form action="{{ url_for('register') }}" method="POST">
-                <div class="mb-3">
+                <div class="mb-3 text-start">
                     <label class="form-label fw-bold small text-secondary">Nombre Completo</label>
                     <input type="text" name="nombre" class="form-control" placeholder="Tus nombres y apellidos" required>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3 text-start">
                     <label class="form-label fw-bold small text-secondary">Número de Teléfono <span class="text-danger">*</span></label>
                     <input type="text" name="telefono" class="form-control text-center fw-bold fs-5 text-info" maxlength="9" minlength="9" pattern="[0-9]{9}" placeholder="932132132" title="Debe ingresar exactamente 9 dígitos numéricos" required>
                     <div class="form-text text-muted" style="font-size: 11px;">Obligatorio. Ingresa exactamente 9 dígitos (ej. 932132132).</div>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3 text-start">
                     <label class="form-label fw-bold small text-secondary">Correo Electrónico</label>
                     <input type="email" name="correo" class="form-control" placeholder="correo@gmail.com" required>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3 text-start">
                     <label class="form-label fw-bold small text-secondary">Contraseña</label>
                     <input type="password" name="password" class="form-control" placeholder="••••••••" required>
                 </div>
 
-                <div class="mb-4">
+                <div class="mb-4 text-start">
                     <label class="form-label fw-bold small text-secondary">Código de Invitación <span class="text-muted fw-normal">(Opcional)</span></label>
                     <input type="text" name="codigo_invitacion" class="form-control text-uppercase" placeholder="EJ. WIND-1-ABCD">
                 </div>
 
                 <button type="submit" class="btn btn-success w-100 py-2 mb-3 fw-bold">Registrarse</button>
                 
+                <!-- Enlace de Iniciar sesión perfectamente centrado -->
                 <div class="text-center small">
                     <span class="text-muted">¿Ya tienes una cuenta?</span> 
                     <a href="{{ url_for('login') }}" class="text-primary text-decoration-none fw-bold">Inicia Sesión aquí</a>

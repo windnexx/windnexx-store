@@ -413,7 +413,6 @@
                                 <tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Estado / Última Conexión (Lima, Perú)</th><th>Rango</th><th>Acción</th></tr>
                             </thead>
                             <tbody>
-                                (_loop_usuarios_)
                                 {% for u in confirmados %}
                                 <tr>
                                     <td class="fw-bold">{{ u.nombre }}</td>
@@ -445,22 +444,36 @@
     </div>
 </div>
 
-<!-- Script en tiempo real con reproducción de sonido de alerta -->
+<!-- Script en tiempo real corregido para evitar falsos positivos y bucles -->
 <script>
-let ultimoTotalPedidos = {{ pedidos_validacion|length }};
-let ultimoTotalUsuarios = {{ pendientes|length + solicitudes_reset|length }};
+let ultimoPedidoId = 0;
+let ultimoUsuarioId = 0;
 
+// Obtiene los ID iniciales actuales al cargar la página
+fetch('/api/verificar-alertas')
+    .then(res => res.json())
+    .then(data => {
+        if (!data.error) {
+            ultimoPedidoId = data.ultimo_pedido_id || 0;
+            ultimoUsuarioId = data.ultimo_usuario_id || 0;
+        }
+    }).catch(err => {});
+
+// Monitorea nuevos registros cada 5 segundos de forma silenciosa
 setInterval(() => {
     fetch('/api/verificar-alertas')
         .then(res => res.json())
         .then(data => {
-            if (data.total_pedidos > ultimoTotalPedidos || data.total_usuarios > ultimoTotalUsuarios) {
-                // Reproduce el sonido de notificación de forma segura
-                let audio = document.getElementById('audioNotificacion');
-                if (audio) {
-                    audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador hasta interacción:", e));
+            if (!data.error) {
+                if (data.ultimo_pedido_id > ultimoPedidoId || data.ultimo_usuario_id > ultimoUsuarioId) {
+                    let audio = document.getElementById('audioNotificacion');
+                    if (audio) {
+                        audio.play().catch(e => console.log("Audio bloqueado por políticas del navegador:", e));
+                    }
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 }
-                location.reload();
             }
         }).catch(err => {});
 }, 5000);
