@@ -199,6 +199,17 @@ def api_estado_usuarios():
         
     return jsonify(resultado)
 
+# API PARA QUE EL CLIENTE VERIFIQUE EL ESTADO DE SU ÚLTIMO PEDIDO EN TIEMPO REAL
+@app.route('/api/cliente/verificar-estado')
+def api_cliente_verificar_estado():
+    if 'usuario_id' not in session or session.get('rol') != 'cliente':
+        return jsonify({}), 403
+    
+    ultimo_pedido = Pedido.query.filter_by(usuario_id=session['usuario_id']).order_by(Pedido.id.desc()).first()
+    if ultimo_pedido:
+        return jsonify({"estado_actual": ultimo_pedido.estado})
+    return jsonify({"estado_actual": None})
+
 PRECIOS = {
     'Fragmentos': 0.082,
     'Cajas': 0.45,
@@ -272,8 +283,8 @@ def register():
         password = request.form.get('password', '')
         codigo_invitacion = request.form.get('codigo_invitacion', '').strip().upper()
         
-        if not nombre or not correo or not password:
-            flash('Todos los campos obligatorios son requeridos.', 'danger')
+        if not nombre or not correo or not password or not telefono:
+            flash('Todos los campos obligatorios, incluyendo el teléfono, son requeridos.', 'danger')
             return redirect(url_for('register'))
 
         if Usuario.query.filter_by(correo=correo).first():
@@ -318,7 +329,6 @@ def register():
         
     return render_template('register.html')
 
-# NUEVA RUTA PARA PROCESAR EL SOPORTE Y FOTOS DESDE EL CLIENTE O LOGIN
 @app.route('/soporte/enviar', methods=['POST'])
 def enviar_soporte():
     nombre = request.form.get('nombre', '').strip()
@@ -373,15 +383,19 @@ def admin_panel():
     
     usuarios_pendientes = Usuario.query.filter_by(confirmado=False, solicitud_reset=False).all()
     usuarios_confirmados = Usuario.query.filter_by(confirmado=True, rol='cliente').all()
+    
+    limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
+    for u in usuarios_confirmados:
+        u.en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
+    
+    # Ordenar estrictamente: conectados y actividad más reciente arriba
+    usuarios_confirmados.sort(key=lambda x: (x.ultima_actividad if x.ultima_actividad else datetime.min), reverse=True)
+
     solicitudes_reset = Usuario.query.filter_by(solicitud_reset=True).all()
     codigos_promo = CodigoPromo.query.all()
     registros_referidos = RegistroReferido.query.all()
     config_referido = ConfiguracionReferido.query.first()
     mensajes_soporte = MensajeSoporte.query.order_by(MensajeSoporte.id.desc()).all()
-    
-    limite_online = datetime.now(TIMEZONE_LIMA).replace(tzinfo=None) - timedelta(minutes=3)
-    for u in usuarios_confirmados:
-        u.en_linea = bool(u.ultima_actividad and u.ultima_actividad >= limite_online)
     
     pedidos_validacion = Pedido.query.filter_by(estado='Validación de pago').all()
     pedidos_recargando = Pedido.query.filter_by(estado='Recargando').all()
@@ -417,7 +431,6 @@ def admin_panel():
         Usuario=Usuario
     )
 
-# RUTA PARA MARCAR SOPORTE COMO ATENDIDO
 @app.route('/admin/soporte/atendido/<int:id>')
 def soporte_atendido(id):
     if 'usuario_id' not in session or session.get('rol') != 'admin':

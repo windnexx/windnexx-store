@@ -1,8 +1,17 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<!-- Audio oculto para notificaciones y alertas sonoras del cliente -->
+<audio id="timbre-cliente" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+</audio>
+
+<!-- Contenedor para notificaciones flotantes en tiempo real del cliente -->
+<div id="contenedor-notificaciones-cliente" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>
+
 <div class="row">
     
+    <!-- MENÚ LATERAL IZQUIERDO -->
     <div class="col-md-3 mb-4">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-dark text-white fw-bold py-3">
@@ -28,6 +37,7 @@
         </div>
     </div>
 
+    <!-- CONTENIDO PRINCIPAL (Derecha) -->
     <div class="col-md-9">
 
         {% if seccion == 'perfil' %}
@@ -189,6 +199,7 @@
                     <h4 class="mb-3 fw-bold text-dark">Catálogo de Productos</h4>
                     <div class="row row-cols-1 row-cols-sm-2 g-3">
                         
+                        <!-- FRAGMENTOS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -207,6 +218,7 @@
                             </div>
                         </div>
 
+                        <!-- CAJAS -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -225,6 +237,7 @@
                             </div>
                         </div>
 
+                        <!-- PASES -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-danger" style="font-size: 10px; margin-top: 10px; margin-left: 20px;">-17%</span>
@@ -243,12 +256,17 @@
                             </div>
                         </div>
 
+                        <!-- NUEVO PRODUCTO: DIAMANTES EN MANTENIMIENTO (Cantidad en 0) -->
                         <div class="col">
                             <div class="card h-100 shadow-sm text-center p-2 position-relative opacity-75">
                                 <span class="position-absolute top-0 start-0 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 10px; margin-top: 10px; margin-left: 25px;">MANTENIMIENTO</span>
                                 <img src="{{ url_for('static', filename='diamantes.png') }}" class="card-img-top mx-auto mt-2" style="height: 70px; object-fit: contain;" alt="Diamantes" onerror="this.src='https://cdn-icons-png.flaticon.com/512/937/937397.png'">
                                 <div class="card-body d-flex flex-column justify-content-between p-2">
                                     <h6 class="card-title fw-bold mb-2 text-muted">Diamantes</h6>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <span class="input-group-text">Cant.</span>
+                                        <input type="number" class="form-control text-center text-muted" value="0" disabled>
+                                    </div>
                                     <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" disabled>🛠️ En Mantenimiento</button>
                                 </div>
                             </div>
@@ -467,5 +485,44 @@
 setInterval(() => {
     fetch('/api/ping').catch(() => {});
 }, 60000);
+
+// Script para verificar en tiempo real si el admin validó o completó el pedido del cliente
+function reproducirSonidoCliente() {
+    const audio = document.getElementById('timbre-cliente');
+    if(audio) {
+        audio.currentTime = 0;
+        audio.play().catch(err => {});
+    }
+}
+
+function mostrarAlertaCliente(texto, tipo = 'success') {
+    const contenedor = document.getElementById('contenedor-notificaciones-cliente');
+    if (!contenedor) return;
+    const alerta = document.createElement('div');
+    alerta.className = `alert alert-${tipo} shadow-lg fw-bold py-2 mb-2 text-dark`;
+    alerta.style.background = tipo === 'success' ? '#00ffcc' : '#ffc107';
+    alerta.style.border = 'none';
+    alerta.innerHTML = `🔔 ${texto}`;
+    contenedor.appendChild(alerta);
+    setTimeout(() => { alerta.remove(); }, 6000);
+}
+
+setInterval(() => {
+    fetch('/api/cliente/verificar-estado')
+        .then(res => res.json())
+        .then(data => {
+            if (data.estado_actual) {
+                if (window.ultimoEstadoConocido && window.ultimoEstadoConocido !== data.estado_actual) {
+                    reproducirSonidoCliente();
+                    if (data.estado_actual === 'Recargando') {
+                        mostrarAlertaCliente("¡Tu pago ha sido validado! Tu pedido está en proceso de recarga ⚡");
+                    } else if (data.estado_actual === 'Completado') {
+                        mostrarAlertaCliente("¡Tu pedido ha sido completado con éxito! 🎉", "success");
+                    }
+                }
+                window.ultimoEstadoConocido = data.estado_actual;
+            }
+        }).catch(err => {});
+}, 7000);
 </script>
 {% endblock %}

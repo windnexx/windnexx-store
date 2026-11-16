@@ -1,40 +1,78 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row justify-content-center align-items-center" style="min-height: 70vh;">
-    <div class="col-md-5">
-        <div class="card shadow-lg border-secondary">
-            <div class="card-body p-4">
-                <h3 class="card-title text-center mb-4 fw-bold text-success">Crear Cuenta</h3>
-                
-                <form action="{{ url_for('register') }}" method="POST" autocomplete="off">
-                    <div class="mb-3">
-                        <label class="form-label text-light">Nombre Completo</label>
-                        <input type="text" name="nombre" class="form-control" required placeholder="Juan Pérez">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-light">Correo Electrónico</label>
-                        <input type="email" name="correo" class="form-control" required placeholder="correo@ejemplo.com">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-light">Número de Teléfono <span class="text-muted">(Opcional)</span></label>
-                        <input type="text" name="telefono" class="form-control" placeholder="999999999" autocomplete="new-password">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-light">Contraseña</label>
-                        <input type="password" name="password" class="form-control" required placeholder="••••••••">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-light">Código de Invitación <span class="text-muted">(Opcional)</span></label>
-                        <input type="text" name="codigo_invitacion" class="form-control text-uppercase" placeholder="Ej. WIND-1-ABCD">
-                    </div>
-                    <button type="submit" class="btn btn-success w-100 fw-bold py-2 mb-3">Solicitar Registro</button>
-                </form>
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card shadow-sm border-0 p-4" style="max-width: 450px; width: 100%; background-color: #121212; color: #fff;">
+        
+        <!-- Logo / Título Superior Corregido -->
+        <div class="d-flex align-items-center mb-4">
+            <span class="text-primary font-bold text-lg me-2">🛡️</span>
+            <span class="text-white font-extrabold tracking-wide fs-5">WINDNEXX STORE</span>
+        </div>
 
-                <hr class="border-secondary my-4">
-                <p class="text-center mb-0 text-light">¿Ya tienes cuenta? <a href="{{ url_for('login') }}" class="text-decoration-none text-info fw-bold">Inicia sesión</a></p>
+        <h3 class="text-center mb-4 fw-bold text-success">Crear Cuenta</h3>
+
+        <form action="{{ url_for('register') }}" method="POST">
+            
+            <!-- 1. Nombre Completo -->
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-light">Nombre Completo</label>
+                <input type="text" name="nombre" class="form-control bg-dark text-white border-secondary" placeholder="Juan Pérez" required>
             </div>
+
+            <!-- 2. Número de Teléfono (Obligatorio, 9 dígitos con formato de espacios) -->
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-light">Número de Teléfono <span class="text-danger">*</span></label>
+                <input type="text" id="telefono" name="telefono" class="form-control bg-dark text-white border-secondary text-center fw-bold" placeholder="932 132 132" maxlength="11" required>
+                <div class="form-text text-muted" style="font-size: 11px;">Obligatorio. Ingresa 9 dígitos (ej. 932 132 132).</div>
+            </div>
+
+            <!-- 3. Correo Electrónico -->
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-light">Correo Electrónico</label>
+                <input type="email" name="correo" class="form-control bg-dark text-white border-secondary" placeholder="correo@ejemplo.com" required>
+            </div>
+
+            <!-- 4. Contraseña -->
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-light">Contraseña</label>
+                <input type="password" name="password" class="form-control bg-dark text-white border-secondary" placeholder="••••••••" required>
+            </div>
+
+            <!-- 5. Código de Invitación (Al final) -->
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-light">Código de Invitación <span class="text-muted">(Opcional)</span></label>
+                <input type="text" name="codigo_invitacion" class="form-control bg-dark text-white border-secondary text-uppercase" placeholder="Ej. WIND-1-ABCD">
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 fw-bold py-2 mb-3">Solicitar Registro</button>
+        </form>
+
+        <div class="text-center mt-2">
+            <span class="text-muted small">¿Ya tienes cuenta?</span> 
+            <a href="{{ url_for('login') }}" class="text-success text-decoration-none fw-bold small">Inicia sesión</a>
         </div>
     </div>
 </div>
+
+<!-- Script para formatear automáticamente el teléfono de 3 en 3 y validar los 9 dígitos -->
+<script>
+document.getElementById('telefono').addEventListener('input', function (e) {
+    let value = e.target.value.replace(/\D/g, ''); // Solo números
+    if (value.length > 9) {
+        value = value.slice(0, 9); // Máximo 9 dígitos reales
+    }
+    
+    // Aplicar formato de espacios cada 3 dígitos (Ej: 932 132 132)
+    let formattedValue = '';
+    for (let i = 0; i < value.length; i++) {
+        if (i > 0 && i % 3 === 0) {
+            formattedValue += ' ';
+        }
+        formattedValue += value[i];
+    }
+    
+    e.target.value = formattedValue;
+});
+</script>
 {% endblock %}
