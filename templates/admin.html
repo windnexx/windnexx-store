@@ -210,12 +210,13 @@
             {% if historicos_agrupados %}
                 <h5 class="fw-bold text-white mb-3">🗂️ Archivo de Ventas Anteriores</h5>
                 {% for fecha_grupo, lista_pedidos in historicos_agrupados.items() %}
-                    <div class="card shadow-sm border-secondary bg-dark text-white mb-3">
-                        <div class="card-header bg-dark text-white fw-bold border-secondary d-flex justify-content-between align-items-center">
-                            <span>📅 Fecha: {{ fecha_grupo }} ({{ lista_pedidos|length }} envíos)</span>
-                            <a href="{{ url_for('descargar_historial_excel', fecha=fecha_grupo) }}" class="btn btn-outline-success btn-sm fw-bold">📥 Descargar Excel (.xlsx)</a>
+                    {% set grupo_id = fecha_grupo.replace('/', '_') %}
+                    <div class="card shadow-sm border-secondary bg-dark text-white mb-2">
+                        <div class="card-header bg-dark text-white fw-bold border-secondary d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleArchivoFecha('archivo_{{ grupo_id }}')">
+                            <span>📅 Fecha: {{ fecha_grupo }} <span class="badge bg-secondary ms-1">{{ lista_pedidos|length }} envíos</span> <small class="text-info ms-2">(Clic para ver)</small></span>
+                            <a href="{{ url_for('descargar_historial_excel', fecha=fecha_grupo) }}" class="btn btn-outline-success btn-sm fw-bold" onclick="event.stopPropagation();">📥 Descargar Excel (.xlsx)</a>
                         </div>
-                        <div class="card-body p-2">
+                        <div class="card-body p-2" id="archivo_{{ grupo_id }}" style="display: none;">
                             <div class="table-responsive">
                                 <table class="table table-dark table-sm table-hover align-middle small text-white mb-0">
                                     <thead>
@@ -226,6 +227,7 @@
                                             <th>ID Destino</th>
                                             <th>Productos</th>
                                             <th>Total</th>
+                                            <th class="text-end">Eliminar</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -237,6 +239,9 @@
                                             <td>{{ p.jugador_id }}</td>
                                             <td>{{ p.detalle }}</td>
                                             <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                            <td class="text-end">
+                                                <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-outline-danger btn-sm py-0 px-2" title="Eliminar registro" onclick="return confirm('¿Eliminar este registro (#{{ p.id }}) del historial?')">X</a>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -606,46 +611,48 @@
 
         {% elif seccion == 'gestion_usuarios' %}
             <!-- SOLICITUDES DE RESTABLECIMIENTO DE CONTRASEÑA -->
-            {% if solicitudes_reset %}
             <div class="card shadow-sm border-danger bg-dark text-white mb-4">
                 <div class="card-header bg-danger text-white fw-bold">
                     🔑 Solicitudes de Restablecimiento de Contraseña ({{ solicitudes_reset|length }})
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover align-middle small text-white mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Correo</th>
-                                    <th>Teléfono</th>
-                                    <th>Nueva Contraseña</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for u in solicitudes_reset %}
-                                <tr>
-                                    <td class="fw-bold">{{ u.nombre }}</td>
-                                    <td>{{ u.correo }}</td>
-                                    <td>{{ u.telefono }}</td>
-                                    <td>
-                                        <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="d-flex gap-1">
-                                            <input type="text" name="nueva_password" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Nueva clave" required>
-                                            <button type="submit" class="btn btn-success btn-sm fw-bold">Guardar</button>
-                                        </form>
-                                    </td>
-                                    <td>
-                                        <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-outline-light btn-sm">Descartar</a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    {% if solicitudes_reset %}
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover align-middle small text-white mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Correo</th>
+                                        <th>Teléfono</th>
+                                        <th>Nueva Contraseña</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for u in solicitudes_reset %}
+                                    <tr>
+                                        <td class="fw-bold">{{ u.nombre }}</td>
+                                        <td>{{ u.correo }}</td>
+                                        <td>{{ u.telefono }}</td>
+                                        <td>
+                                            <form action="{{ url_for('restablecer_password', id=u.id) }}" method="POST" class="d-flex gap-1">
+                                                <input type="text" name="nueva_password" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Nueva clave" required>
+                                                <button type="submit" class="btn btn-success btn-sm fw-bold">Guardar</button>
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('eliminar_solicitud_reset', id=u.id) }}" class="btn btn-outline-light btn-sm">Descartar</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center my-2">No hay solicitudes de restablecimiento de contraseña pendientes.</p>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
 
             <!-- USUARIOS PENDIENTES DE APROBACIÓN -->
             <div class="card shadow-sm border-warning bg-dark text-white mb-4">
@@ -703,18 +710,21 @@
                                         <th>Usuario</th>
                                         <th>Teléfono</th>
                                         <th>Saldo Ref.</th>
-                                        <th>Categoría</th>
+                                        <th>Rango</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="tbodyUsuariosConfirmados">
                                     {% for u in confirmados %}
-                                    <tr class="fila-usuario">
+                                    <tr class="fila-usuario" id="fila-usr-{{ u.id }}" data-timestamp="{{ u.ultima_actividad.timestamp() if u.ultima_actividad else 0 }}">
                                         <td id="estado-usr-{{ u.id }}">
                                             {% if u.en_linea %}
                                                 <span class="badge bg-success">● En línea</span>
                                             {% else %}
                                                 <span class="badge bg-secondary">Offline</span>
+                                                <div class="text-muted" style="font-size: 10px;">
+                                                    {{ u.ultima_actividad.strftime('%d/%m/%Y %H:%M') if u.ultima_actividad else 'Nunca' }}
+                                                </div>
                                             {% endif %}
                                         </td>
                                         <td>
@@ -724,13 +734,11 @@
                                         <td>{{ u.telefono }}</td>
                                         <td><span class="badge bg-warning text-dark">{{ u.saldo_fragmentos or 0 }} Frag.</span></td>
                                         <td>
-                                            <form action="{{ url_for('actualizar_categoria', id=u.id) }}" method="POST" class="d-flex gap-1">
-                                                <select name="categoria" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
-                                                    <option value="Cliente" {% if u.categoria == 'Cliente' %}selected{% endif %}>Cliente</option>
-                                                    <option value="Supercliente" {% if u.categoria == 'Supercliente' %}selected{% endif %}>Supercliente</option>
-                                                    <option value="Otros" {% if u.categoria == 'Otros' %}selected{% endif %}>Otros</option>
-                                                </select>
-                                            </form>
+                                            {% if u.rango == 'Plata' %}
+                                                <span class="badge bg-primary">Plata 🥈</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Bronce 🥉</span>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             <a href="{{ url_for('eliminar_usuario', id=u.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('¿Eliminar permanentemente al usuario {{ u.nombre }} y todos sus pedidos?')">Eliminar</a>
@@ -751,6 +759,12 @@
 </div>
 
 <script>
+function toggleArchivoFecha(idContenedor) {
+    const el = document.getElementById(idContenedor);
+    if (!el) return;
+    el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+}
+
 function actualizarEtiquetaStock(checkbox, labelId) {
     const lbl = document.getElementById(labelId);
     if (!lbl) return;
@@ -851,21 +865,41 @@ setInterval(() => {
 }, 6000);
 
 {% if seccion == 'gestion_usuarios' %}
-setInterval(() => {
+function actualizarEstadosYOrdenUsuarios() {
     fetch('/api/estado-usuarios')
         .then(r => r.json())
         .then(estados => {
+            const tbody = document.getElementById('tbodyUsuariosConfirmados');
+            if (!tbody) return;
+
             for (const [id, info] of Object.entries(estados)) {
                 const celda = document.getElementById(`estado-usr-${id}`);
+                const fila = document.getElementById(`fila-usr-${id}`);
                 if (celda) {
                     celda.innerHTML = info.en_linea
                         ? '<span class="badge bg-success">● En línea</span>'
-                        : '<span class="badge bg-secondary">Offline</span>';
+                        : `<span class="badge bg-secondary">Offline</span><div class="text-muted" style="font-size: 10px;">${info.ultima_actividad || 'Nunca'}</div>`;
+                }
+                if (fila) {
+                    fila.dataset.timestamp = info.timestamp || 0;
+                    fila.dataset.online = info.en_linea ? '1' : '0';
                 }
             }
+
+            const filas = Array.from(tbody.querySelectorAll('tr.fila-usuario'));
+            filas.sort((a, b) => {
+                const onlineA = parseInt(a.dataset.online || '0', 10);
+                const onlineB = parseInt(b.dataset.online || '0', 10);
+                if (onlineB !== onlineA) return onlineB - onlineA;
+                const tsA = parseFloat(a.dataset.timestamp || '0');
+                const tsB = parseFloat(b.dataset.timestamp || '0');
+                return tsB - tsA;
+            });
+            filas.forEach(fila => tbody.appendChild(fila));
         })
         .catch(() => {});
-}, 10000);
+}
+setInterval(actualizarEstadosYOrdenUsuarios, 10000);
 {% endif %}
 </script>
 {% endblock %}

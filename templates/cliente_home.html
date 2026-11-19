@@ -444,12 +444,12 @@
                                 {% set descuento_17 = total_general * 0.17 %}
 
                                 <div class="mb-3 p-2 bg-light rounded border small">
-                                    <div class="d-flex justify-content-between text-muted">
+                                    <div class="d-flex justify-content-between text-white">
                                         <span>Subtotal:</span>
                                         <span>S/ {{ "%.2f"|format(subtotal_17) }}</span>
                                     </div>
                                     
-                                    <div class="d-flex justify-content-between text-muted">
+                                    <div class="d-flex justify-content-between text-white">
                                         <span>Ciber Wow WindNexx:</span>
                                         <span class="text-danger">-S/ {{ "%.2f"|format(descuento_17) }}</span>
                                     </div>
@@ -469,7 +469,7 @@
                                     {% endif %}
 
                                     <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
-                                        <span class="fw-bold text-dark">Total a Pagar:</span>
+                                        <span class="fw-bold text-white">Total a Pagar:</span>
                                         <span class="fs-5 fw-bold text-danger">S/ {{ total_final }}</span>
                                     </div>
                                 </div>
