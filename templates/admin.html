@@ -707,7 +707,12 @@
                                 <thead>
                                     <tr>
                                         <th>Estado</th>
-                                        <th>Usuario</th>
+                                        <th>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span>Usuario</span>
+                                                <button type="button" class="btn btn-outline-info btn-sm py-0 px-2" title="Copiar todos los correos para Gmail" onclick="copiarTodosLosCorreos(this)">📋 Copiar correos</button>
+                                            </div>
+                                        </th>
                                         <th>Teléfono</th>
                                         <th>Saldo Ref.</th>
                                         <th>Rango</th>
@@ -731,7 +736,13 @@
                                             <div class="fw-bold nombre-usr">{{ u.nombre }}</div>
                                             <div class="text-info correo-usr">{{ u.correo }}</div>
                                         </td>
-                                        <td>{{ u.telefono }}</td>
+                                        <td>
+                                            {% if u.telefono and u.telefono|string != 'None' %}
+                                                <span class="telefono-copiable" style="cursor: pointer;" title="Clic para copiar número" onclick="copiarTelefono(this)">{{ u.telefono }}</span>
+                                            {% else %}
+                                                <span class="text-muted">None</span>
+                                            {% endif %}
+                                        </td>
                                         <td><span class="badge bg-warning text-dark">{{ u.saldo_fragmentos or 0 }} Frag.</span></td>
                                         <td>
                                             {% if u.rango == 'Plata' %}
@@ -759,6 +770,44 @@
 </div>
 
 <script>
+function copiarTodosLosCorreos(btn) {
+    const filas = document.querySelectorAll('#tbodyUsuariosConfirmados tr.fila-usuario');
+    const correos = [];
+    filas.forEach(fila => {
+        if (fila.style.display !== 'none') {
+            const elCorreo = fila.querySelector('.correo-usr');
+            if (elCorreo) {
+                const txt = elCorreo.textContent.trim();
+                if (txt && txt !== 'None') {
+                    correos.push(txt);
+                }
+            }
+        }
+    });
+    if (correos.length === 0) return;
+    navigator.clipboard.writeText(correos.join(', '));
+    const original = btn.innerHTML;
+    btn.innerHTML = '✓ Copiados (' + correos.length + ')';
+    btn.classList.remove('btn-outline-info');
+    btn.classList.add('btn-success', 'text-white');
+    setTimeout(() => {
+        btn.innerHTML = original;
+        btn.classList.remove('btn-success', 'text-white');
+        btn.classList.add('btn-outline-info');
+    }, 2000);
+}
+
+function copiarTelefono(el) {
+    const numero = el.dataset.numero || el.textContent.trim();
+    if (!numero || numero === 'None') return;
+    el.dataset.numero = numero;
+    navigator.clipboard.writeText(numero);
+    el.innerHTML = `${numero} <span class="badge bg-success ms-1">✓ Copiado</span>`;
+    setTimeout(() => {
+        el.textContent = numero;
+    }, 1500);
+}
+
 function toggleArchivoFecha(idContenedor) {
     const el = document.getElementById(idContenedor);
     if (!el) return;
