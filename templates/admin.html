@@ -155,18 +155,20 @@
             </div>
 
         {% elif seccion == 'historial_envios' %}
+            {% set es_super_admin = (session.get('correo') == 'windnexx@gmail.com') or (current_user is defined and current_user.is_authenticated and current_user.correo == 'windnexx@gmail.com') %}
+            {% set pedidos_hoy_visibles = pedidos_hoy if es_super_admin else (pedidos_hoy|rejectattr('oculto')|list) %}
             <div class="card shadow-sm border-success bg-dark text-white mb-4">
                 <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                     <span>📦 Historial de Envíos de Hoy</span>
                     <div class="d-flex gap-2 align-items-center">
-                        {% if pedidos_hoy %}
-                            <a href="{{ url_for('descargar_historial_excel', fecha=pedidos_hoy[0].solo_fecha) }}" class="btn btn-light btn-sm fw-bold text-success">📥 Descargar Excel Hoy</a>
+                        {% if pedidos_hoy_visibles %}
+                            <a href="{{ url_for('descargar_historial_excel', fecha=pedidos_hoy_visibles[0].solo_fecha) }}" class="btn btn-light btn-sm fw-bold text-success">📥 Descargar Excel Hoy</a>
                         {% endif %}
-                        <span class="badge bg-light text-dark">{{ pedidos_hoy|length }} completados</span>
+                        <span class="badge bg-light text-dark">{{ pedidos_hoy_visibles|length }} completados</span>
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if pedidos_hoy %}
+                    {% if pedidos_hoy_visibles %}
                         <div class="table-responsive">
                             <table class="table table-dark table-hover align-middle small text-white mb-0">
                                 <thead>
@@ -178,12 +180,20 @@
                                         <th>Productos</th>
                                         <th>Cupón</th>
                                         <th>Total</th>
+                                        {% if es_super_admin %}
+                                            <th class="text-end">Visibilidad</th>
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for p in pedidos_hoy %}
-                                    <tr>
-                                        <td>#{{ p.id }}</td>
+                                    {% for p in pedidos_hoy_visibles %}
+                                    <tr class="{% if es_super_admin and p.oculto %}opacity-50{% endif %}">
+                                        <td>
+                                            #{{ p.id }}
+                                            {% if es_super_admin and p.oculto %}
+                                                <span class="badge bg-warning text-dark ms-1">Oculto</span>
+                                            {% endif %}
+                                        </td>
                                         <td>{{ p.fecha }}</td>
                                         <td>{{ p.nombre_cliente }}</td>
                                         <td><span class="badge bg-secondary">{{ p.jugador_id }}</span></td>
@@ -196,6 +206,13 @@
                                             {% endif %}
                                         </td>
                                         <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                        {% if es_super_admin %}
+                                            <td class="text-end">
+                                                <a href="{{ url_for('ocultar_pedido', id=p.id) }}" class="btn {% if p.oculto %}btn-warning text-dark fw-bold{% else %}btn-outline-secondary text-white{% endif %} btn-sm py-0 px-2">
+                                                    {% if p.oculto %}👁️ Mostrar{% else %}🙈 Ocultar{% endif %}
+                                                </a>
+                                            </td>
+                                        {% endif %}
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -210,45 +227,63 @@
             {% if historicos_agrupados %}
                 <h5 class="fw-bold text-white mb-3">🗂️ Archivo de Ventas Anteriores</h5>
                 {% for fecha_grupo, lista_pedidos in historicos_agrupados.items() %}
-                    {% set grupo_id = fecha_grupo.replace('/', '_') %}
-                    <div class="card shadow-sm border-secondary bg-dark text-white mb-2">
-                        <div class="card-header bg-dark text-white fw-bold border-secondary d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleArchivoFecha('archivo_{{ grupo_id }}')">
-                            <span>📅 Fecha: {{ fecha_grupo }} <span class="badge bg-secondary ms-1">{{ lista_pedidos|length }} envíos</span> <small class="text-info ms-2">(Clic para ver)</small></span>
-                            <a href="{{ url_for('descargar_historial_excel', fecha=fecha_grupo) }}" class="btn btn-outline-success btn-sm fw-bold" onclick="event.stopPropagation();">📥 Descargar Excel (.xlsx)</a>
-                        </div>
-                        <div class="card-body p-2" id="archivo_{{ grupo_id }}" style="display: none;">
-                            <div class="table-responsive">
-                                <table class="table table-dark table-sm table-hover align-middle small text-white mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>Hora</th>
-                                            <th>Cliente</th>
-                                            <th>ID Destino</th>
-                                            <th>Productos</th>
-                                            <th>Total</th>
-                                            <th class="text-end">Eliminar</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for p in lista_pedidos %}
-                                        <tr>
-                                            <td>#{{ p.id }}</td>
-                                            <td>{{ p.fecha.split(' ')[1] if ' ' in p.fecha else p.fecha }}</td>
-                                            <td>{{ p.nombre_cliente }}</td>
-                                            <td>{{ p.jugador_id }}</td>
-                                            <td>{{ p.detalle }}</td>
-                                            <td class="fw-bold text-success">S/ {{ p.total }}</td>
-                                            <td class="text-end">
-                                                <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-outline-danger btn-sm py-0 px-2" title="Eliminar registro" onclick="return confirm('¿Eliminar este registro (#{{ p.id }}) del historial?')">X</a>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                    {% set lista_visibles = lista_pedidos if es_super_admin else (lista_pedidos|rejectattr('oculto')|list) %}
+                    {% if lista_visibles %}
+                        {% set grupo_id = fecha_grupo.replace('/', '_') %}
+                        <div class="card shadow-sm border-secondary bg-dark text-white mb-2">
+                            <div class="card-header bg-dark text-white fw-bold border-secondary d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleArchivoFecha('archivo_{{ grupo_id }}')">
+                                <span>📅 Fecha: {{ fecha_grupo }} <span class="badge bg-secondary ms-1">{{ lista_visibles|length }} envíos</span> <small class="text-info ms-2">(Clic para ver)</small></span>
+                                <a href="{{ url_for('descargar_historial_excel', fecha=fecha_grupo) }}" class="btn btn-outline-success btn-sm fw-bold" onclick="event.stopPropagation();">📥 Descargar Excel (.xlsx)</a>
+                            </div>
+                            <div class="card-body p-2" id="archivo_{{ grupo_id }}" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-dark table-sm table-hover align-middle small text-white mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Hora</th>
+                                                <th>Cliente</th>
+                                                <th>ID Destino</th>
+                                                <th>Productos</th>
+                                                <th>Total</th>
+                                                {% if es_super_admin %}
+                                                    <th class="text-end">Visibilidad</th>
+                                                {% endif %}
+                                                <th class="text-end">Eliminar</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for p in lista_visibles %}
+                                            <tr class="{% if es_super_admin and p.oculto %}opacity-50{% endif %}">
+                                                <td>
+                                                    #{{ p.id }}
+                                                    {% if es_super_admin and p.oculto %}
+                                                        <span class="badge bg-warning text-dark ms-1">Oculto</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ p.fecha.split(' ')[1] if ' ' in p.fecha else p.fecha }}</td>
+                                                <td>{{ p.nombre_cliente }}</td>
+                                                <td>{{ p.jugador_id }}</td>
+                                                <td>{{ p.detalle }}</td>
+                                                <td class="fw-bold text-success">S/ {{ p.total }}</td>
+                                                {% if es_super_admin %}
+                                                    <td class="text-end">
+                                                        <a href="{{ url_for('ocultar_pedido', id=p.id) }}" class="btn {% if p.oculto %}btn-warning text-dark fw-bold{% else %}btn-outline-secondary text-white{% endif %} btn-sm py-0 px-2">
+                                                            {% if p.oculto %}👁️ Mostrar{% else %}🙈 Ocultar{% endif %}
+                                                        </a>
+                                                    </td>
+                                                {% endif %}
+                                                <td class="text-end">
+                                                    <a href="{{ url_for('eliminar_pedido', id=p.id) }}" class="btn btn-outline-danger btn-sm py-0 px-2" title="Eliminar registro" onclick="return confirm('¿Eliminar este registro (#{{ p.id }}) del historial?')">X</a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
 
