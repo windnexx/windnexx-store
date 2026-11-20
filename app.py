@@ -121,6 +121,7 @@ class Pedido(db.Model):
     estado = db.Column(db.String(50), default='Validación de pago') 
     fecha = db.Column(db.String(30), default=lambda: hora_lima().strftime('%d/%m/%Y %H:%M'))
     solo_fecha = db.Column(db.String(20), default=lambda: hora_lima().strftime('%d/%m/%Y'))
+    oculto = db.Column(db.Boolean, default=False)
 
 # Modelo para Mensajes de Soporte / Atención al Cliente
 class MensajeSoporte(db.Model):
@@ -157,6 +158,7 @@ with app.app_context():
             connection.execute(text('ALTER TABLE configuracion_referido ADD COLUMN IF NOT EXISTS fragmentos_por_referido INTEGER DEFAULT 20;'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS codigo_promo VARCHAR(50);'))
             connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS descuento_aplicado FLOAT DEFAULT 0.0;'))
+            connection.execute(text('ALTER TABLE pedido ADD COLUMN IF NOT EXISTS oculto BOOLEAN DEFAULT FALSE;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_premio VARCHAR(30) DEFAULT \'descuento\';'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS cantidad_premio FLOAT DEFAULT 0.0;'))
             connection.execute(text('ALTER TABLE codigo_promo ADD COLUMN IF NOT EXISTS tipo_limite VARCHAR(20) DEFAULT \'ilimitado\';'))
@@ -792,7 +794,11 @@ def descargar_historial_excel():
         return redirect(url_for('login'))
 
     fecha_solicitada = request.args.get('fecha', '')
-    pedidos_fecha = Pedido.query.filter_by(estado='Completado', solo_fecha=fecha_solicitada).order_by(Pedido.id.asc()).all()
+    es_super_admin = (session.get('correo') == 'windnexx@gmail.com')
+    consulta = Pedido.query.filter_by(estado='Completado', solo_fecha=fecha_solicitada)
+    if not es_super_admin:
+        consulta = consulta.filter((Pedido.oculto == False) | (Pedido.oculto.is_(None)))
+    pedidos_fecha = consulta.order_by(Pedido.id.asc()).all()
 
     filas = [
         ["ID Pedido", "Fecha y Hora", "Cliente", "ID Destino", "Detalle de Productos", "Cupón", "Total (S/)"]
@@ -1030,6 +1036,21 @@ def completar_recarga(id):
     otorgar_bono_referido_si_aplica(pedido.usuario_id)
 
     flash(f'Recarga completada para el pedido #{pedido.id}. Movido al historial.', 'success')
+    return redirect(url_for('admin_panel', seccion='historial_envios'))
+
+@app.route('/admin/ocultar_pedido/<int:id>')
+def ocultar_pedido(id):
+    if 'usuario_id' not in session or session.get('rol') != 'admin':
+        return redirect(url_for('login'))
+    if session.get('correo') != 'windnexx@gmail.com':
+        flash('No tienes permiso para realizar esta acción.', 'danger')
+        return redirect(url_for('admin_panel', seccion='historial_envios'))
+
+    pedido = Pedido.query.get_or_404(id)
+    pedido.oculto = not bool(pedido.oculto)
+    db.session.commit()
+    estado_txt = 'ocultado' if pedido.oculto else 'mostrado nuevamente'
+    flash(f'El pedido #{pedido.id} ha sido {estado_txt}.', 'info')
     return redirect(url_for('admin_panel', seccion='historial_envios'))
 
 @app.route('/admin/eliminar_pedido/<int:id>')
